@@ -31,15 +31,16 @@ type PlayerInfo struct {
 
 // Session 은 하나의 활성 터널 세션을 나타냅니다.
 type Session struct {
-	ClientID      string
-	AssignedPort  uint16
-	Listener      net.Listener // 외부 리스너
-	DataSession   *yamux.Session
-	CreatedAt     time.Time
-	LastHeartbeat atomic.Int64 // UnixNano
-	PlayerCount   atomic.Int32 // 현재 접속 중인 플레이어 수
-	Closed        atomic.Bool
-	mu            sync.Mutex
+	ClientID         string
+	AssignedPort     uint16
+	Listener         net.Listener // 외부 리스너
+	DataSession      *yamux.Session
+	CreatedAt        time.Time
+	LastHeartbeat    atomic.Int64 // UnixNano
+	PlayerCount      atomic.Int32 // 현재 접속 중인 플레이어 수
+	Closed           atomic.Bool
+	UnlimitedPlayers atomic.Bool // true이면 인원 수 제한 해제
+	mu               sync.Mutex
 
 	// Player tracking
 	Players sync.Map // playerName(string) -> *PlayerInfo
@@ -54,11 +55,12 @@ type Session struct {
 }
 
 // IncrementPlayer 은 현재 플레이어 수를 1 증가시킵니다.
+// UnlimitedPlayers가 true이면 인원 수 제한을 적용하지 않습니다.
 // 최대 인원 초과 시 false를 반환합니다.
 func (s *Session) IncrementPlayer(max int) bool {
 	for {
 		cur := s.PlayerCount.Load()
-		if int(cur) >= max {
+		if !s.UnlimitedPlayers.Load() && int(cur) >= max {
 			return false
 		}
 		if s.PlayerCount.CompareAndSwap(cur, cur+1) {

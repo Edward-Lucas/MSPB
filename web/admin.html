@@ -297,6 +297,31 @@
                 background: hsla(210, 80%, 55%, 0.08);
                 box-shadow: inset 0 0 0 1px hsla(210, 80%, 55%, 0.15);
             }
+
+            /* Unlimited toggle buttons */
+            .btn-unlimited-off {
+                background: hsl(220, 15%, 18%);
+                color: hsl(210, 5%, 55%);
+                border: 1px solid hsl(220, 10%, 25%);
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .btn-unlimited-off:hover {
+                background: hsl(210, 80%, 55%, 0.15);
+                border-color: hsl(210, 80%, 55%, 0.4);
+                color: hsl(210, 80%, 70%);
+            }
+            .btn-unlimited-on {
+                background: hsla(142, 70%, 45%, 0.15);
+                color: hsl(142, 70%, 60%);
+                border: 1px solid hsla(142, 70%, 45%, 0.3);
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .btn-unlimited-on:hover {
+                background: hsla(142, 70%, 45%, 0.25);
+                border-color: hsla(142, 70%, 45%, 0.5);
+            }
         </style>
     </head>
     <body class="min-h-screen">
@@ -447,6 +472,7 @@
                                 <th>클라이언트 ID</th>
                                 <th>할당 포트</th>
                                 <th>플레이어</th>
+                                <th>인원 제한</th>
                                 <th>트래픽</th>
                                 <th>생성 시간</th>
                                 <th>다음 하트비트</th>
@@ -457,7 +483,7 @@
                         <tbody id="sessions-body">
                             <tr>
                                 <td
-                                    colspan="8"
+                                    colspan="9"
                                     class="text-center py-8 text-[hsl(210,5%,50%)]"
                                 >
                                     데이터 로딩 중...
@@ -676,14 +702,16 @@
                             cells[2].textContent = s.player_count + "명";
                             cells[2].onclick = () =>
                                 openPlayerModal(s.assigned_port, s.players);
-                            // [3] traffic
+                            // [3] unlimited toggle
+                            updateUnlimitedCell(cells[3], s);
+                            // [4] traffic
                             const trafficDivs =
-                                cells[3].querySelectorAll("div");
+                                cells[4].querySelectorAll("div");
                             trafficDivs[0].textContent =
                                 "↓ " + formatBytesFixed(s.interval_in) + "/s";
                             trafficDivs[1].textContent =
                                 "↑ " + formatBytesFixed(s.interval_out) + "/s";
-                            cells[3].onclick = () =>
+                            cells[4].onclick = () =>
                                 openTrafficModal(
                                     s.assigned_port,
                                     s.bytes_in,
@@ -691,13 +719,14 @@
                                     s.interval_in,
                                     s.interval_out,
                                 );
-                            // [4] created_at — static
-                            // [5] heartbeat
-                            cells[5].textContent = formatHeartbeatCountdown(
+                            // [5] created_at
+                            cells[5].textContent = formatTime(s.created_at);
+                            // [6] heartbeat
+                            cells[6].textContent = formatHeartbeatCountdown(
                                 s.last_heartbeat,
                             );
-                            // [6] status — static unless changed
-                            // [7] button — static
+                            // [7] status — static unless changed
+                            // [8] button — static
                         } else {
                             // Create new row
                             const tr = document.createElement("tr");
@@ -706,6 +735,7 @@
               <td class="font-mono text-xs">${escapeHtml(s.client_id)}</td>
               <td><code class="bg-[hsl(220,15%,16%)] px-1.5 py-0.5 rounded text-xs">${s.assigned_port}</code></td>
               <td class="clickable">${s.player_count}명</td>
+              <td class="unlimited-cell"></td>
               <td class="text-xs clickable">
                 <div style="font-family:monospace;white-space:pre">↓ ${formatBytesFixed(s.interval_in)}/s</div>
                 <div style="font-family:monospace;white-space:pre">↑ ${formatBytesFixed(s.interval_out)}/s</div>
@@ -717,7 +747,7 @@
                             // Bind onclick for clickable cells
                             tr.children[2].onclick = () =>
                                 openPlayerModal(s.assigned_port, s.players);
-                            tr.children[3].onclick = () =>
+                            tr.children[4].onclick = () =>
                                 openTrafficModal(
                                     s.assigned_port,
                                     s.bytes_in,
@@ -725,6 +755,8 @@
                                     s.interval_in,
                                     s.interval_out,
                                 );
+                            // Bind unlimited toggle
+                            updateUnlimitedCell(tr.children[3], s);
                             const closeBtn = tr.querySelector(".btn-danger");
                             if (closeBtn)
                                 closeBtn.onclick = () =>
@@ -744,6 +776,35 @@
                 } catch (e) {
                     setStatus(false);
                     console.error("Sessions fetch error:", e);
+                }
+            }
+
+            function updateUnlimitedCell(cell, s) {
+                const unlimited = s.unlimited_players;
+                cell.innerHTML = `<button class="text-xs px-2 py-1 rounded ${unlimited ? "btn-unlimited-on" : "btn-unlimited-off"}">${unlimited ? "해제됨" : "8명"}</button>`;
+                cell.querySelector("button").onclick = () =>
+                    toggleUnlimited(s.assigned_port);
+            }
+
+            async function toggleUnlimited(port) {
+                try {
+                    const res = await fetch(
+                        `${API_BASE}/api/session/toggle-unlimited`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ port }),
+                        },
+                    );
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+                    showToast(
+                        `포트 ${port} 인원 제한: ${data.unlimited_players ? "해제" : "8명 제한"}`,
+                    );
+                    refreshAll();
+                } catch (e) {
+                    showToast("인원 제한 토글 실패", "error");
+                    console.error("Toggle unlimited error:", e);
                 }
             }
 

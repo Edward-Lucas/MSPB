@@ -47,6 +47,7 @@ func (ds *DashboardServer) Start(addr string) error {
 	mux.HandleFunc("/api/sessions", ds.handleSessions)
 	mux.HandleFunc("/api/stats", ds.handleStats)
 	mux.HandleFunc("/api/session/close", ds.handleCloseSession)
+	mux.HandleFunc("/api/session/toggle-unlimited", ds.handleToggleUnlimited)
 	mux.HandleFunc("/dashboard", ds.handleDashboardPage)
 	mux.HandleFunc("/dashboard/", ds.handleDashboardPage)
 
@@ -106,17 +107,18 @@ func (ds *DashboardServer) handleDashboardPage(w http.ResponseWriter, r *http.Re
 
 // SessionInfo 는 API 응답용 세션 정보입니다.
 type SessionInfo struct {
-	ClientID      string        `json:"client_id"`
-	AssignedPort  uint16        `json:"assigned_port"`
-	PlayerCount   int32         `json:"player_count"`
-	Players       []PlayerEntry `json:"players"`
-	BytesIn       int64         `json:"bytes_in"`     // cumulative
-	BytesOut      int64         `json:"bytes_out"`    // cumulative
-	IntervalIn    int64         `json:"interval_in"`  // bytes in last interval
-	IntervalOut   int64         `json:"interval_out"` // bytes out last interval
-	CreatedAt     string        `json:"created_at"`
-	LastHeartbeat string        `json:"last_heartbeat"`
-	Closed        bool          `json:"closed"`
+	ClientID         string        `json:"client_id"`
+	AssignedPort     uint16        `json:"assigned_port"`
+	PlayerCount      int32         `json:"player_count"`
+	Players          []PlayerEntry `json:"players"`
+	UnlimitedPlayers bool          `json:"unlimited_players"`
+	BytesIn          int64         `json:"bytes_in"`     // cumulative
+	BytesOut         int64         `json:"bytes_out"`    // cumulative
+	IntervalIn       int64         `json:"interval_in"`  // bytes in last interval
+	IntervalOut      int64         `json:"interval_out"` // bytes out last interval
+	CreatedAt        string        `json:"created_at"`
+	LastHeartbeat    string        `json:"last_heartbeat"`
+	Closed           bool          `json:"closed"`
 }
 
 // PlayerEntry 는 API 응답용 플레이어 정보입니다.
@@ -183,17 +185,18 @@ func (ds *DashboardServer) handleSessions(w http.ResponseWriter, r *http.Request
 		sess.LastBytesOut.Store(curOut)
 
 		sessions = append(sessions, SessionInfo{
-			ClientID:      sess.ClientID,
-			AssignedPort:  sess.AssignedPort,
-			PlayerCount:   sess.PlayerCount.Load(),
-			Players:       players,
-			BytesIn:       curIn,
-			BytesOut:      curOut,
-			IntervalIn:    curIn - lastIn,
-			IntervalOut:   curOut - lastOut,
-			CreatedAt:     sess.CreatedAt.Format(time.RFC3339),
-			LastHeartbeat: time.Unix(0, sess.LastHeartbeat.Load()).Format(time.RFC3339),
-			Closed:        sess.Closed.Load(),
+			ClientID:         sess.ClientID,
+			AssignedPort:     sess.AssignedPort,
+			PlayerCount:      sess.PlayerCount.Load(),
+			Players:          players,
+			UnlimitedPlayers: sess.UnlimitedPlayers.Load(),
+			BytesIn:          curIn,
+			BytesOut:         curOut,
+			IntervalIn:       curIn - lastIn,
+			IntervalOut:      curOut - lastOut,
+			CreatedAt:        sess.CreatedAt.Format(time.RFC3339),
+			LastHeartbeat:    time.Unix(0, sess.LastHeartbeat.Load()).Format(time.RFC3339),
+			Closed:           sess.Closed.Load(),
 		})
 		return true
 	})
@@ -268,4 +271,43 @@ func (ds *DashboardServer) handleCloseSession(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "closed"})
+}
+
+// handleToggleUnlimited 은 특정 세션의 인원 수 제한을 토글합니다.
+func (ds *DashboardServer) handleToggleUnlimited(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Port uint16 `json:"port"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	sess, ok := ds.portTable.GetSession(req.Port)
+	if !ok {
+		http.Error(w, "Session not found", http.StatusNotFound)
+		return
+	}
+
+	var newVal bool
+	for {
+		old := sess.UnlimitedPlayers.Load()
+		if sess.UnlimitedPlayers.CompareAndSwap(old, !old) {
+			newVal = !old
+			break
+		}
+	}
+
+	log.Printf("[Dashboard] 인원 제한 토글: port=%d unlimited=%v", req.Port, newVal)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":            "ok",
+		"unlimited_players": newVal,
+	})
 }
