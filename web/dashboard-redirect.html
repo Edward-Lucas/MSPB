@@ -1,0 +1,443 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<!doctype html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>대시보드로 이동 중...</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                background: hsl(220, 20%, 8%);
+                color: hsl(210, 10%, 90%);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+            }
+
+            .container {
+                text-align: center;
+                max-width: 500px;
+                width: 100%;
+            }
+
+            .icon {
+                font-size: 48px;
+                margin-bottom: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+                font-weight: 600;
+                margin-bottom: 12px;
+                color: hsl(210, 10%, 95%);
+            }
+
+            .message {
+                font-size: 16px;
+                color: hsl(210, 5%, 55%);
+                margin-bottom: 24px;
+                line-height: 1.5;
+            }
+
+            .spinner {
+                display: inline-block;
+                width: 40px;
+                height: 40px;
+                border: 3px solid hsla(220, 10%, 20%, 0.6);
+                border-radius: 50%;
+                border-top-color: hsl(210, 80%, 55%);
+                animation: spin 1s linear infinite;
+                margin-bottom: 24px;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .progress-bar {
+                width: 100%;
+                height: 4px;
+                background: hsla(220, 10%, 20%, 0.6);
+                border-radius: 2px;
+                overflow: hidden;
+                margin-bottom: 24px;
+            }
+
+            .progress-fill {
+                height: 100%;
+                background: linear-gradient(
+                    90deg,
+                    hsl(210, 80%, 55%),
+                    hsl(190, 70%, 50%)
+                );
+                border-radius: 2px;
+                transition: width 0.1s linear;
+            }
+
+            .status {
+                font-size: 14px;
+                color: hsl(210, 5%, 55%);
+                margin-bottom: 20px;
+            }
+
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.875rem 2rem;
+                font-size: 1rem;
+                font-weight: 600;
+                color: hsl(210, 80%, 55%);
+                background: hsla(210, 80%, 55%, 0.1);
+                border: 2px solid hsl(210, 80%, 55%);
+                border-radius: 0.75rem;
+                cursor: pointer;
+                text-decoration: none;
+                transition: all 0.3s ease;
+                margin-top: 16px;
+            }
+
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px hsla(210, 80%, 55%, 0.3);
+            }
+
+            .btn:active {
+                transform: translateY(0);
+            }
+
+            .btn-secondary {
+                color: hsl(210, 10%, 80%);
+                background: transparent;
+                border: 1px solid hsl(220, 10%, 22%);
+                border-radius: 0.75rem;
+                padding: 0.875rem 2rem;
+                font-size: 1rem;
+                font-weight: 600;
+                margin-left: 8px;
+                transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .btn-secondary:hover {
+                background: hsl(220, 15%, 15%);
+                box-shadow: none;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+
+            .error .icon {
+                color: hsl(0, 80%, 65%);
+            }
+
+            .error h1 {
+                color: hsl(0, 80%, 65%);
+            }
+
+            .guide {
+                background: hsla(220, 20%, 10%, 0.6);
+                border: 1px solid hsla(220, 10%, 22%, 0.5);
+                border-radius: 8px;
+                padding: 14px 18px;
+                font-size: 13px;
+                line-height: 1.7;
+                color: hsl(210, 10%, 75%);
+            }
+
+            .error-wrap {
+                display: flex;
+                align-items: stretch;
+                gap: 24px;
+                max-width: 900px;
+                width: 100%;
+                flex-wrap: wrap;
+                padding: 0 24px;
+            }
+
+            .error-wrap .error {
+                flex: 7;
+                max-width: none;
+            }
+
+            .error-right {
+                flex: 3;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .error-right .guide {
+                flex: 1;
+                display: flex;
+                align-items: center;
+            }
+
+            .error-actions {
+                margin-top: 12px;
+                text-align: center;
+            }
+
+            .error-actions .btn {
+                width: 100%;
+                margin-top: 0;
+                margin-bottom: 8px;
+            }
+
+            .error-actions .btn:last-child {
+                margin-bottom: 0;
+            }
+
+            .error-actions .btn-secondary {
+                margin-left: 0;
+            }
+
+            .guide p {
+                margin-bottom: 4px;
+            }
+
+            .guide p:last-child {
+                margin-bottom: 0;
+            }
+
+            .guide strong {
+                color: hsl(210, 10%, 90%);
+            }
+
+            .guide code {
+                background: hsla(210, 80%, 55%, 0.15);
+                color: hsl(190, 70%, 50%);
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            }
+
+            .guide-pc {
+                display: block;
+            }
+
+            .mobile-guide {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                max-width: 400px;
+                width: 100%;
+                padding: 24px;
+                border-radius: 12px;
+                background: hsla(220, 20%, 15%, 0.65);
+                border: 1px solid hsla(220, 10%, 27%, 0.55);
+                color: hsl(210, 10%, 80%);
+                gap: 16px;
+            }
+
+            .mobile-guide .btn-secondary {
+                color: hsl(210, 10%, 85%);
+                border-color: hsl(220, 10%, 27%);
+            }
+
+            @media (max-width: 767px) {
+                .error-wrap {
+                    flex-direction: column;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <!-- 모바일 전용 화면 -->
+        <div class="mobile-guide hidden" id="mobileGuide">
+            <div>
+                <p><strong>⚠️ 연결 실패</strong></p>
+                <p>대시보드는 PC 환경에서만 이용할 수 있습니다.</p>
+            </div>
+            <div class="error-actions">
+                <a href="/" class="btn btn-secondary">메인 페이지로</a>
+            </div>
+        </div>
+
+        <!-- PC 전용 화면 -->
+        <div class="container" id="loading">
+            <div class="spinner"></div>
+            <h1>대시보드로 이동 중...</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status" id="status">서버 연결 확인 중...</div>
+        </div>
+
+        <div class="error-wrap hidden" id="error">
+            <div class="error">
+                <div class="icon">✕</div>
+                <h1>연결 실패</h1>
+                <div class="message">대시보드 서버에 연결할 수 없습니다.</div>
+            </div>
+            <div class="error-right">
+                <div class="guide">
+                    <div>
+                        <p><strong>💡 해결 방법</strong></p>
+                        <p class="guide-pc">
+                            <code>mspb-server</code> 또는
+                            <code>mspb-client</code>가 실행 중인지 확인해
+                            주세요.
+                        </p>
+                    </div>
+                </div>
+                <div class="error-actions">
+                    <a href="/" class="btn btn-secondary">메인 페이지로</a>
+                    <button class="btn" id="retryBtn">다시 시도</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const REDIRECT_URL = "http://127.0.0.1:18080/dashboard";
+            const HEALTH_URL = "http://127.0.0.1:18080/api/health";
+            const TIMEOUT_MS = 3000;
+            let progressInterval = null;
+            let currentImg = null;
+            let currentTimer = null;
+
+            function showView(viewId) {
+                document.getElementById("loading").classList.add("hidden");
+                document.getElementById("error").classList.add("hidden");
+                document.getElementById("mobileGuide").classList.add("hidden");
+                document.getElementById(viewId).classList.remove("hidden");
+            }
+
+            function updateProgress(percent) {
+                document.getElementById("progressFill").style.width =
+                    percent + "%";
+            }
+
+            function updateStatus(text) {
+                document.getElementById("status").textContent = text;
+            }
+
+            function cleanup() {
+                if (currentTimer) {
+                    clearTimeout(currentTimer);
+                    currentTimer = null;
+                }
+                if (currentImg) {
+                    currentImg.onload = null;
+                    currentImg.onerror = null;
+                    currentImg.src = "";
+                    currentImg = null;
+                }
+            }
+
+            function checkConnection() {
+                updateStatus("서버 연결 확인 중...");
+
+                // 이전 요청 완전 정리
+                cleanup();
+
+                let done = false;
+                const img = new Image();
+                currentImg = img;
+
+                // 타임아웃 - 3초 내 응답 없으면 접속 불가
+                currentTimer = setTimeout(() => {
+                    if (!done) {
+                        done = true;
+                        cleanup();
+                        clearInterval(progressInterval);
+                        showError();
+                    }
+                }, TIMEOUT_MS);
+
+                // onload만 성공으로 간주 (서버가 응답하면 이미지 로드 성공)
+                img.onload = () => {
+                    if (!done) {
+                        done = true;
+                        cleanup();
+                        clearInterval(progressInterval);
+                        updateProgress(100);
+                        setTimeout(() => {
+                            window.location.href = REDIRECT_URL;
+                        }, 200);
+                    }
+                };
+
+                // onerror는 실패로 간주 (서버 응답 없음 또는 연결 실패)
+                img.onerror = () => {
+                    if (!done) {
+                        done = true;
+                        cleanup();
+                        clearInterval(progressInterval);
+                        showError();
+                    }
+                };
+
+                img.src = HEALTH_URL + "?_t=" + Date.now();
+            }
+
+            function isMobile() {
+                return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                    navigator.userAgent,
+                );
+            }
+
+            function showError() {
+                if (isMobile()) {
+                    showView("mobileGuide");
+                } else {
+                    showView("error");
+                }
+            }
+
+            function retryConnection() {
+                showView("loading");
+                updateProgress(0);
+                startProgressAnimation();
+                checkConnection();
+            }
+
+            document
+                .getElementById("retryBtn")
+                .addEventListener("click", retryConnection);
+
+            function startProgressAnimation() {
+                let progress = 0;
+                const increment = 100 / (TIMEOUT_MS / 100);
+
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+
+                progressInterval = setInterval(() => {
+                    progress += increment;
+                    if (progress >= 90) {
+                        progress = 90;
+                        clearInterval(progressInterval);
+                    }
+                    updateProgress(progress);
+                }, 100);
+            }
+
+            // 초기 실행
+            if (isMobile()) {
+                showView("mobileGuide");
+            } else {
+                startProgressAnimation();
+                checkConnection();
+            }
+        </script>
+    </body>
+</html>

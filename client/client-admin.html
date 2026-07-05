@@ -1,0 +1,693 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<!doctype html>
+<html lang="ko" class="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>MSPB Client Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwindcss.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: { DEFAULT: "hsl(210, 80%, 55%)" },
+                            secondary: { DEFAULT: "hsl(190, 70%, 50%)" },
+                            background: { DEFAULT: "hsl(220, 20%, 8%)" },
+                            foreground: { DEFAULT: "hsl(210, 10%, 90%)" },
+                            card: { DEFAULT: "hsl(220, 15%, 12%)" },
+                            muted: { DEFAULT: "hsl(220, 10%, 18%)" },
+                            "muted-foreground": {
+                                DEFAULT: "hsl(210, 5%, 55%)",
+                            },
+                            border: { DEFAULT: "hsl(220, 10%, 20%)" },
+                        },
+                    },
+                },
+            };
+        </script>
+        <style>
+            :root {
+                --gradient-primary: linear-gradient(
+                    135deg,
+                    hsl(210, 80%, 55%),
+                    hsl(190, 70%, 50%)
+                );
+                --glass-bg: hsla(220, 20%, 10%, 0.6);
+                --glass-border: hsla(220, 10%, 22%, 0.5);
+                --shadow-glass: 0 8px 32px 0 hsla(220, 30%, 0%, 0.4);
+            }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                background: hsl(220, 20%, 8%);
+                color: hsl(210, 10%, 90%);
+                line-height: 1.6;
+            }
+            .glass-card {
+                border-radius: 1rem;
+                border: 1px solid var(--glass-border);
+                background: var(--glass-bg);
+                backdrop-filter: blur(12px);
+                box-shadow: var(--shadow-glass);
+            }
+            .gradient-text {
+                background: var(--gradient-primary);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .gradient-btn {
+                background: var(--gradient-primary);
+                color: #fff;
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.375rem;
+            }
+            .gradient-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 16px hsla(210, 80%, 55%, 0.3);
+            }
+            .btn-copy {
+                background: hsl(220, 15%, 18%);
+                color: hsl(210, 10%, 80%);
+                border: 1px solid hsl(220, 10%, 22%);
+                border-radius: 0.375rem;
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .btn-copy:hover {
+                background: hsl(220, 15%, 24%);
+            }
+            .btn-copy:active {
+                background: hsl(210, 80%, 55%);
+                color: #fff;
+            }
+            .status-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .status-dot.online {
+                background: hsl(142, 71%, 45%);
+            }
+            .status-dot.offline {
+                background: hsl(0, 62%, 50%);
+            }
+            .fade-in {
+                animation: fadeIn 0.3s ease-out;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            .toast {
+                position: fixed;
+                bottom: 2rem;
+                right: 2rem;
+                padding: 0.75rem 1.25rem;
+                border-radius: 0.75rem;
+                font-size: 0.875rem;
+                font-weight: 500;
+                z-index: 1000;
+                background: hsl(142, 71%, 35%);
+                color: #fff;
+                animation: slideUp 0.3s ease-out;
+            }
+            @keyframes slideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        </style>
+    </head>
+    <body class="min-h-screen">
+        <header class="border-b border-[hsl(220,10%,20%)] py-4 px-6">
+            <div class="max-w-5xl mx-auto flex items-center justify-between">
+                <h1 class="text-lg font-bold">
+                    MSPB
+                    <span class="text-sm font-normal text-[hsl(210,5%,50%)]"
+                        >Client Dashboard</span
+                    >
+                </h1>
+                <div class="flex items-center gap-3">
+                    <span
+                        id="status-indicator"
+                        class="flex items-center gap-2 text-sm text-[hsl(210,5%,50%)]"
+                    >
+                        <span class="status-dot offline"></span> 연결 중...
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-5xl mx-auto py-8 px-6 space-y-6">
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 fade-in">
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        할당 포트
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-port"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        접속 플레이어
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-players"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        실시간 송수신
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-rate"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        총 송수신
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-total"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        다음 하트비트
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-heartbeat"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        연결 시간
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-uptime"
+                    >
+                        -
+                    </div>
+                </div>
+            </div>
+
+            <!-- Traffic Graph -->
+            <div class="glass-card p-5 fade-in">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-bold text-sm">실시간 트래픽</h2>
+                    <span
+                        class="text-xs text-[hsl(210,5%,50%)]"
+                        id="graph-label"
+                        >데이터 수집 중...</span
+                    >
+                </div>
+                <div id="graph-container" style="min-height: 180px">
+                    <div
+                        class="text-center py-6 text-xs text-[hsl(210,5%,50%)]"
+                    >
+                        데이터 수집 중...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Players -->
+            <div class="glass-card overflow-hidden fade-in">
+                <div
+                    class="p-5 border-b border-[hsl(220,10%,20%)] flex items-center justify-between"
+                >
+                    <h2 class="font-bold">접속 플레이어</h2>
+                    <span
+                        class="text-xs text-[hsl(210,5%,50%)]"
+                        id="player-count"
+                        >0명</span
+                    >
+                </div>
+                <div id="players-container" class="p-5">
+                    <div class="text-center py-8 text-[hsl(210,5%,50%)]">
+                        데이터 로딩 중...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connection Info -->
+            <div class="glass-card p-5 fade-in">
+                <h2 class="font-bold text-sm mb-3">연결 정보</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-[hsl(210,5%,50%)]">서버:</span>
+                        <code
+                            class="bg-[hsl(220,15%,16%)] px-1.5 py-0.5 rounded text-xs ml-2"
+                            id="info-server"
+                            >-</code
+                        >
+                    </div>
+                    <div>
+                        <span class="text-[hsl(210,5%,50%)]">로컬:</span>
+                        <code
+                            class="bg-[hsl(220,15%,16%)] px-1.5 py-0.5 rounded text-xs ml-2"
+                            id="info-local"
+                            >-</code
+                        >
+                    </div>
+                    <div>
+                        <span class="text-[hsl(210,5%,50%)]"
+                            >외부 접속 주소:</span
+                        >
+                        <code
+                            class="bg-[hsl(220,15%,16%)] px-1.5 py-0.5 rounded text-xs ml-2"
+                            id="info-external"
+                            >-</code
+                        >
+                        <button
+                            class="btn-copy ml-2"
+                            id="btn-copy-addr"
+                            onclick="copyExternalAddr()"
+                            style="display: none"
+                        >
+                            복사
+                        </button>
+                    </div>
+                    <div>
+                        <span class="text-[hsl(210,5%,50%)]">상태:</span>
+                        <span id="info-status" class="ml-2 text-sm">-</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="py-8 px-6 border-t border-[hsl(220,10%,20%)] mt-8">
+            <div
+                class="max-w-5xl mx-auto text-center text-xs text-[hsl(210,5%,50%)]"
+            >
+                MSPB Client Dashboard
+            </div>
+        </footer>
+
+        <script>
+            const API_BASE = window.location.origin;
+            const intervalHistory = { in: [], out: [] };
+            const HISTORY_MAX = 60;
+            const HEARTBEAT_INTERVAL = 15;
+            let externalAddr = "";
+
+            function formatUptime(seconds) {
+                if (seconds < 60) return seconds + "초";
+                if (seconds < 3600) return Math.floor(seconds / 60) + "분";
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                return h + "시간 " + m + "분";
+            }
+
+            // Number is always 2 digits: 00 or 0.0
+            function formatBytes(bytes) {
+                if (bytes === 0) return "0 B";
+                const k = 1024;
+                const sizes = ["B", "KB", "MB", "GB"];
+                for (let i = 0; i < sizes.length; i++) {
+                    const val = bytes / Math.pow(k, i);
+                    if (val < 10) return val.toFixed(1) + " " + sizes[i];
+                    if (val < 100) return Math.floor(val) + " " + sizes[i];
+                }
+                return (bytes / Math.pow(k, 3)).toFixed(1) + " GB";
+            }
+
+            function formatTime(iso) {
+                if (!iso) return "-";
+                const d = new Date(iso);
+                const diff = Math.floor((Date.now() - d) / 1000);
+                if (diff < 10) return "방금 전";
+                if (diff < 60) return diff + "초 전";
+                if (diff < 3600) return Math.floor(diff / 60) + "분 전";
+                return d.toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                });
+            }
+
+            function formatHeartbeatCountdown(iso) {
+                if (!iso) return "-";
+                const lastBeat = new Date(iso).getTime();
+                const elapsed = Math.floor((Date.now() - lastBeat) / 1000);
+                const remaining =
+                    HEARTBEAT_INTERVAL - (elapsed % HEARTBEAT_INTERVAL) - 1;
+                if (remaining <= 0) return "now";
+                return remaining + "s";
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement("div");
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function showToast(message) {
+                const existing = document.querySelector(".toast");
+                if (existing) existing.remove();
+                const toast = document.createElement("div");
+                toast.className = "toast";
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            }
+
+            function copyExternalAddr() {
+                if (!externalAddr) return;
+                navigator.clipboard
+                    .writeText(externalAddr)
+                    .then(() => {
+                        showToast("복사되었습니다: " + externalAddr);
+                    })
+                    .catch(() => {
+                        // fallback
+                        const ta = document.createElement("textarea");
+                        ta.value = externalAddr;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand("copy");
+                        ta.remove();
+                        showToast("복사되었습니다: " + externalAddr);
+                    });
+            }
+
+            async function fetchStatus() {
+                try {
+                    const res = await fetch(API_BASE + "/api/client/status");
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+
+                    // Stats
+                    document.getElementById("stat-port").textContent =
+                        data.assigned_port || "-";
+                    document.getElementById("stat-players").textContent =
+                        data.player_count + "명";
+                    document.getElementById("stat-rate").textContent =
+                        formatBytes(data.interval_in + data.interval_out) +
+                        "/s";
+                    document.getElementById("stat-total").textContent =
+                        formatBytes(data.bytes_in + data.bytes_out);
+                    document.getElementById("stat-heartbeat").textContent =
+                        formatHeartbeatCountdown(data.last_heartbeat);
+                    document.getElementById("stat-uptime").textContent =
+                        formatUptime(data.uptime_seconds);
+
+                    // Connection info
+                    document.getElementById("info-server").textContent =
+                        data.server_addr;
+                    document.getElementById("info-local").textContent =
+                        data.local_addr;
+                    externalAddr = data.assigned_port
+                        ? "mspb.r-e.kr:" + data.assigned_port
+                        : "";
+                    document.getElementById("info-external").textContent =
+                        externalAddr || "-";
+                    document.getElementById("btn-copy-addr").style.display =
+                        externalAddr ? "inline-flex" : "none";
+
+                    document.getElementById("info-status").innerHTML =
+                        data.connected
+                            ? '<span class="flex items-center gap-1.5"><span class="status-dot online"></span>연결됨</span>'
+                            : '<span class="flex items-center gap-1.5"><span class="status-dot offline"></span>연결 끊김</span>';
+
+                    document.getElementById("status-indicator").innerHTML =
+                        data.connected
+                            ? '<span class="status-dot online"></span> 연결됨'
+                            : '<span class="status-dot offline"></span> 연결 끊김';
+
+                    // Players
+                    const container =
+                        document.getElementById("players-container");
+                    document.getElementById("player-count").textContent =
+                        data.player_count + "명";
+                    if (data.players.length === 0) {
+                        container.innerHTML =
+                            '<div class="text-center py-8 text-[hsl(210,5%,50%)]">접속 중인 플레이어가 없습니다</div>';
+                    } else {
+                        container.innerHTML =
+                            '<div class="space-y-3">' +
+                            data.players
+                                .map(
+                                    (p) => `
+            <div class="glass-card p-4 flex items-start gap-4">
+              <div class="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+                ${escapeHtml(p.name.substring(0, 2).toUpperCase())}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="font-bold text-sm">${escapeHtml(p.name)}</div>
+                <div class="text-xs text-[hsl(210,5%,50%)] mt-1 space-y-0.5">
+                  <div>UUID: <code class="bg-[hsl(220,15%,16%)] px-1 rounded">${escapeHtml(p.uuid || "-")}</code></div>
+                  <div>접속 시간: ${formatTime(p.connected_at)}</div>
+                </div>
+              </div>
+            </div>
+          `,
+                                )
+                                .join("") +
+                            "</div>";
+                    }
+
+                    // Traffic history
+                    const now = Date.now();
+                    intervalHistory.in.push({ t: now, v: data.interval_in });
+                    intervalHistory.out.push({ t: now, v: data.interval_out });
+                    if (intervalHistory.in.length > HISTORY_MAX)
+                        intervalHistory.in.shift();
+                    if (intervalHistory.out.length > HISTORY_MAX)
+                        intervalHistory.out.shift();
+
+                    updateGraph();
+                } catch (e) {
+                    document.getElementById("info-status").innerHTML =
+                        '<span class="flex items-center gap-1.5"><span class="status-dot offline"></span>연결 끊김</span>';
+                    document.getElementById("status-indicator").innerHTML =
+                        '<span class="status-dot offline"></span> 연결 끊김';
+                }
+            }
+
+            function updateGraph() {
+                const inData = intervalHistory.in;
+                const outData = intervalHistory.out;
+                if (inData.length < 2) return;
+
+                const graphW = 760;
+                const graphH = 180;
+                const pad = { top: 20, right: 50, bottom: 24, left: 50 };
+                const plotW = graphW - pad.left - pad.right;
+                const plotH = graphH - pad.top - pad.bottom;
+
+                const maxIn = Math.max(...inData.map((d) => d.v), 1);
+                const maxOut = Math.max(...outData.map((d) => d.v), 1);
+
+                function buildPath(data, seriesMax) {
+                    if (data.length < 2) return "";
+                    const step = plotW / Math.max(data.length - 1, 1);
+                    return data
+                        .map((d, i) => {
+                            const x = pad.left + i * step;
+                            const y =
+                                pad.top +
+                                plotH -
+                                (seriesMax > 0 ? (d.v / seriesMax) * plotH : 0);
+                            return (
+                                (i === 0 ? "M" : "L") +
+                                x.toFixed(1) +
+                                "," +
+                                y.toFixed(1)
+                            );
+                        })
+                        .join(" ");
+                }
+
+                function buildArea(data, seriesMax) {
+                    if (data.length < 2) return "";
+                    const step = plotW / Math.max(data.length - 1, 1);
+                    const line = data
+                        .map((d, i) => {
+                            const x = pad.left + i * step;
+                            const y =
+                                pad.top +
+                                plotH -
+                                (seriesMax > 0 ? (d.v / seriesMax) * plotH : 0);
+                            return (
+                                (i === 0 ? "M" : "L") +
+                                x.toFixed(1) +
+                                "," +
+                                y.toFixed(1)
+                            );
+                        })
+                        .join(" ");
+                    const lastX = pad.left + (data.length - 1) * step;
+                    return (
+                        line +
+                        " L" +
+                        lastX.toFixed(1) +
+                        "," +
+                        (pad.top + plotH) +
+                        " L" +
+                        pad.left +
+                        "," +
+                        (pad.top + plotH) +
+                        " Z"
+                    );
+                }
+
+                const inPath = buildPath(inData, maxIn);
+                const outPath = buildPath(outData, maxOut);
+                const inArea = buildArea(inData, maxIn);
+                const outArea = buildArea(outData, maxOut);
+
+                const yIn = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        const val = formatBytes(Math.round(maxIn * pct));
+                        return (
+                            '<text x="' +
+                            (pad.left - 6) +
+                            '" y="' +
+                            (y + 3) +
+                            '" text-anchor="end" fill="hsl(210,80%,55%)" font-size="9">' +
+                            val +
+                            "</text>"
+                        );
+                    })
+                    .join("");
+
+                const yOut = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        const val = formatBytes(Math.round(maxOut * pct));
+                        return (
+                            '<text x="' +
+                            (pad.left + plotW + 6) +
+                            '" y="' +
+                            (y + 3) +
+                            '" text-anchor="start" fill="hsl(190,70%,50%)" font-size="9">' +
+                            val +
+                            "</text>"
+                        );
+                    })
+                    .join("");
+
+                const grid = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        return (
+                            '<line x1="' +
+                            pad.left +
+                            '" y1="' +
+                            y +
+                            '" x2="' +
+                            (pad.left + plotW) +
+                            '" y2="' +
+                            y +
+                            '" stroke="hsl(220,10%,16%)" stroke-width="0.5"/>'
+                        );
+                    })
+                    .join("");
+
+                const xLabel =
+                    '<text x="' +
+                    (pad.left + plotW / 2) +
+                    '" y="' +
+                    (graphH - 2) +
+                    '" text-anchor="middle" fill="hsl(210,5%,45%)" font-size="9">최근 ' +
+                    inData.length +
+                    "초</text>";
+
+                const container = document.getElementById("graph-container");
+                const label = document.getElementById("graph-label");
+                container.innerHTML =
+                    '<svg viewBox="0 0 ' +
+                    graphW +
+                    " " +
+                    graphH +
+                    '" class="w-full" style="max-height:200px">' +
+                    grid +
+                    yIn +
+                    yOut +
+                    xLabel +
+                    '<path d="' +
+                    inArea +
+                    '" fill="hsl(210,80%,55%)" fill-opacity="0.12"/>' +
+                    '<path d="' +
+                    outArea +
+                    '" fill="hsl(190,70%,50%)" fill-opacity="0.12"/>' +
+                    '<path d="' +
+                    inPath +
+                    '" fill="none" stroke="hsl(210,80%,55%)" stroke-width="1.5"/>' +
+                    '<path d="' +
+                    outPath +
+                    '" fill="none" stroke="hsl(190,70%,50%)" stroke-width="1.5"/>' +
+                    "</svg>" +
+                    '<div class="flex justify-center gap-6 text-xs text-[hsl(210,5%,50%)] mt-2">' +
+                    '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(210,80%,55%)"></span>수신 (↓) ' +
+                    formatBytes(maxIn) +
+                    "/s max</span>" +
+                    '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(190,70%,50%)"></span>송신 (↑) ' +
+                    formatBytes(maxOut) +
+                    "/s max</span>" +
+                    "</div>";
+                label.textContent =
+                    "↓ " +
+                    formatBytes(inData[inData.length - 1].v) +
+                    "/s  ↑ " +
+                    formatBytes(outData[outData.length - 1].v) +
+                    "/s";
+            }
+
+            fetchStatus();
+            setInterval(fetchStatus, 1000);
+        </script>
+    </body>
+</html>

@@ -1,0 +1,26 @@
+# 빌드 산출물
+*.exe
+*.syso
+
+# 의존성
+go.sum
+
+# 잠금 파일
+*.lock
+
+# 인증서 (절대 커밋 금지)
+*.pfx
+*.p12
+*.key
+
+# 서버 설정 (로컬 경로 포함)
+Caddyfile
+
+# 런타임 데이터
+web/stats.json
+
+# 외부 프로젝트 파일
+project-f533ef56-*/
+
+# 윈도우 시스템 파일
+nul

@@ -1,0 +1,1365 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<!doctype html>
+<html lang="ko" class="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>MSPB Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwindcss.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: { DEFAULT: "hsl(210, 80%, 55%)" },
+                            secondary: { DEFAULT: "hsl(190, 70%, 50%)" },
+                            background: { DEFAULT: "hsl(220, 20%, 8%)" },
+                            foreground: { DEFAULT: "hsl(210, 10%, 90%)" },
+                            card: { DEFAULT: "hsl(220, 15%, 12%)" },
+                            muted: { DEFAULT: "hsl(220, 10%, 18%)" },
+                            "muted-foreground": {
+                                DEFAULT: "hsl(210, 5%, 55%)",
+                            },
+                            border: { DEFAULT: "hsl(220, 10%, 20%)" },
+                            destructive: { DEFAULT: "hsl(0, 62%, 50%)" },
+                        },
+                    },
+                },
+            };
+        </script>
+        <style>
+            :root {
+                --gradient-primary: linear-gradient(
+                    135deg,
+                    hsl(210, 80%, 55%),
+                    hsl(190, 70%, 50%)
+                );
+                --glass-bg: hsla(220, 20%, 10%, 0.6);
+                --glass-border: hsla(220, 10%, 22%, 0.5);
+                --shadow-glass: 0 8px 32px 0 hsla(220, 30%, 0%, 0.4);
+                --shadow-glow: 0 0 40px hsla(210, 80%, 55%, 0.2);
+                --blur-amount: 12px;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                background: hsl(220, 20%, 8%);
+                color: hsl(210, 10%, 90%);
+                line-height: 1.6;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            .glass-card {
+                border-radius: 1rem;
+                border: 1px solid var(--glass-border);
+                background: var(--glass-bg);
+                backdrop-filter: blur(var(--blur-amount));
+                box-shadow: var(--shadow-glass);
+            }
+
+            .gradient-text {
+                background: var(--gradient-primary);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+
+            .gradient-btn {
+                background: var(--gradient-primary);
+                color: #fff;
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.5rem 1.25rem;
+                font-size: 0.875rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.375rem;
+            }
+            .gradient-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 16px hsla(210, 80%, 55%, 0.3);
+            }
+
+            .btn-danger {
+                background: hsl(0, 62%, 50%);
+                color: #fff;
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.375rem 0.875rem;
+                font-size: 0.75rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .btn-danger:hover {
+                background: hsl(0, 62%, 45%);
+            }
+
+            .btn-refresh {
+                background: hsl(220, 15%, 18%);
+                color: hsl(210, 10%, 80%);
+                border: 1px solid hsl(220, 10%, 22%);
+                border-radius: 0.5rem;
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .btn-refresh:hover {
+                background: hsl(220, 15%, 22%);
+            }
+
+            /* Status dot */
+            .status-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .status-dot.online {
+                background: hsl(142, 71%, 45%);
+            }
+            .status-dot.offline {
+                background: hsl(0, 62%, 50%);
+            }
+
+            /* Table */
+            .data-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .data-table th {
+                text-align: left;
+                padding: 0.75rem 1rem;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: hsl(210, 5%, 50%);
+                border-bottom: 1px solid hsl(220, 10%, 20%);
+            }
+            .data-table td {
+                padding: 0.75rem 1rem;
+                font-size: 0.875rem;
+                border-bottom: 1px solid hsl(220, 10%, 15%);
+            }
+            .data-table tr:hover td {
+                background: hsla(220, 15%, 12%, 0.5);
+            }
+
+            /* Fade in */
+            .fade-in {
+                animation: fadeIn 0.3s ease-out;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            /* Scrollbar */
+            ::-webkit-scrollbar {
+                width: 6px;
+            }
+            ::-webkit-scrollbar-track {
+                background: hsl(220, 20%, 8%);
+            }
+            ::-webkit-scrollbar-thumb {
+                background: hsl(220, 10%, 25%);
+                border-radius: 3px;
+            }
+
+            /* Toast */
+            .toast {
+                position: fixed;
+                bottom: 2rem;
+                right: 2rem;
+                padding: 0.75rem 1.25rem;
+                border-radius: 0.75rem;
+                font-size: 0.875rem;
+                font-weight: 500;
+                z-index: 1000;
+                animation: slideUp 0.3s ease-out;
+            }
+            @keyframes slideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            .toast.success {
+                background: hsl(142, 71%, 35%);
+                color: #fff;
+            }
+            .toast.error {
+                background: hsl(0, 62%, 45%);
+                color: #fff;
+            }
+
+            /* Modal overlay */
+            .modal-overlay {
+                position: fixed;
+                inset: 0;
+                background: hsla(220, 20%, 5%, 0.8);
+                backdrop-filter: blur(4px);
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: fadeIn 0.2s ease-out;
+            }
+            .modal-content {
+                background: hsl(220, 15%, 12%);
+                border: 1px solid hsl(220, 10%, 22%);
+                border-radius: 1rem;
+                padding: 2rem;
+                max-width: 640px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 16px 64px hsla(0, 0%, 0%, 0.5);
+            }
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1.5rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid hsl(220, 10%, 20%);
+            }
+            .modal-close {
+                background: none;
+                border: none;
+                color: hsl(210, 5%, 50%);
+                cursor: pointer;
+                font-size: 1.5rem;
+                line-height: 1;
+                padding: 0.25rem;
+            }
+            .modal-close:hover {
+                color: hsl(210, 10%, 90%);
+            }
+
+            /* Traffic bar */
+            .traffic-bar {
+                height: 6px;
+                border-radius: 3px;
+                background: hsl(220, 10%, 18%);
+                overflow: hidden;
+                margin-top: 0.25rem;
+            }
+            .traffic-bar-in {
+                height: 100%;
+                background: hsl(210, 80%, 55%);
+                border-radius: 3px;
+                transition: width 0.3s ease;
+            }
+            .traffic-bar-out {
+                height: 100%;
+                background: hsl(190, 70%, 50%);
+                border-radius: 3px;
+                transition: width 0.3s ease;
+            }
+
+            /* Clickable cell */
+            .clickable {
+                cursor: pointer;
+                transition:
+                    background 0.15s ease,
+                    box-shadow 0.15s ease;
+                border-radius: 0.375rem;
+            }
+            .clickable:hover {
+                background: hsla(210, 80%, 55%, 0.08);
+                box-shadow: inset 0 0 0 1px hsla(210, 80%, 55%, 0.15);
+            }
+        </style>
+    </head>
+    <body class="min-h-screen">
+        <!-- Header -->
+        <header class="border-b border-[hsl(220,10%,20%)] py-4 px-6">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <h1 class="text-lg font-bold">
+                    MSPB
+                    <span class="text-sm font-normal text-[hsl(210,5%,50%)]"
+                        >Dashboard</span
+                    >
+                </h1>
+                <div class="flex items-center gap-3">
+                    <span
+                        id="status-indicator"
+                        class="flex items-center gap-2 text-sm text-[hsl(210,5%,50%)]"
+                    >
+                        <span class="status-dot offline"></span>
+                        연결 중...
+                    </span>
+                    <button onclick="refreshAll()" class="btn-refresh">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="w-4 h-4 inline"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                        </svg>
+                        새로고침
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto py-8 px-6">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8 fade-in">
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        활성 세션
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-sessions"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        총 플레이어
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-players"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        포트 범위
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-ports"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        가동 시간
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-uptime"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        실시간 송수신
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-rate"
+                    >
+                        -
+                    </div>
+                </div>
+                <div class="glass-card p-5">
+                    <div class="text-xs text-[hsl(210,5%,50%)] mb-1">
+                        총 송수신
+                    </div>
+                    <div
+                        class="text-2xl font-bold gradient-text"
+                        id="stat-total-traffic"
+                    >
+                        -
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Traffic Graph -->
+            <div class="glass-card p-5 mb-8 fade-in">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-bold text-sm">실시간 트래픽</h2>
+                    <span
+                        class="text-xs text-[hsl(210,5%,50%)]"
+                        id="global-graph-label"
+                        >데이터 수집 중...</span
+                    >
+                </div>
+                <div id="global-graph-container" style="min-height: 180px">
+                    <div
+                        class="text-center py-6 text-xs text-[hsl(210,5%,50%)]"
+                    >
+                        세션 연결 대기 중...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sessions Table -->
+            <div class="glass-card overflow-hidden fade-in">
+                <div
+                    class="p-5 border-b border-[hsl(220,10%,20%)] flex items-center justify-between"
+                >
+                    <h2 class="font-bold">활성 세션</h2>
+                    <span
+                        class="text-xs text-[hsl(210,5%,50%)]"
+                        id="session-count"
+                        >0개</span
+                    >
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>클라이언트 ID</th>
+                                <th>할당 포트</th>
+                                <th>플레이어</th>
+                                <th>트래픽</th>
+                                <th>생성 시간</th>
+                                <th>다음 하트비트</th>
+                                <th>상태</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessions-body">
+                            <tr>
+                                <td
+                                    colspan="8"
+                                    class="text-center py-8 text-[hsl(210,5%,50%)]"
+                                >
+                                    데이터 로딩 중...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <script>
+            const API_BASE = window.location.origin;
+            let refreshInterval = null;
+
+            // Global rate tracking for stats card
+            let lastTotalBytesIn = 0;
+            let lastTotalBytesOut = 0;
+
+            // Traffic history per port (for usage graphs)
+            const trafficHistory = {}; // port -> { in: [{t, v}], out: [{t, v}] }
+            const HISTORY_MAX = 60; // 60 data points = 1 minute at 1s interval
+
+            const intervalHistory = {}; // port -> { in: [{t, v}], out: [{t, v}] }
+
+            function recordTraffic(
+                port,
+                bytesIn,
+                bytesOut,
+                intervalIn,
+                intervalOut,
+            ) {
+                if (!trafficHistory[port]) {
+                    trafficHistory[port] = { in: [], out: [] };
+                }
+                const h = trafficHistory[port];
+                const now = Date.now();
+                h.in.push({ t: now, v: bytesIn });
+                h.out.push({ t: now, v: bytesOut });
+                if (h.in.length > HISTORY_MAX) h.in.shift();
+                if (h.out.length > HISTORY_MAX) h.out.shift();
+
+                if (!intervalHistory[port]) {
+                    intervalHistory[port] = { in: [], out: [] };
+                }
+                const ih = intervalHistory[port];
+                ih.in.push({ t: now, v: intervalIn });
+                ih.out.push({ t: now, v: intervalOut });
+                if (ih.in.length > HISTORY_MAX) ih.in.shift();
+                if (ih.out.length > HISTORY_MAX) ih.out.shift();
+            }
+
+            // ── 유틸리티 ──
+
+            function formatUptime(seconds) {
+                if (seconds < 60) return `${seconds}초`;
+                if (seconds < 3600) return `${Math.floor(seconds / 60)}분`;
+                if (seconds < 86400) {
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    return `${h}시간 ${m}분`;
+                }
+                const d = Math.floor(seconds / 86400);
+                const h = Math.floor((seconds % 86400) / 3600);
+                return `${d}일 ${h}시간`;
+            }
+
+            function formatTime(iso) {
+                if (!iso) return "-";
+                const d = new Date(iso);
+                const now = new Date();
+                const diff = Math.floor((now - d) / 1000);
+                if (diff < 10) return "방금 전";
+                if (diff < 60) return `${diff}초 전`;
+                if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+                return d.toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                });
+            }
+
+            function formatBytes(bytes) {
+                if (bytes === 0) return "0 B";
+                const k = 1024;
+                const sizes = ["B", "KB", "MB", "GB"];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return (
+                    parseFloat((bytes / Math.pow(k, i)).toFixed(1)) +
+                    " " +
+                    sizes[i]
+                );
+            }
+
+            // Fixed-width bytes format (always 10 chars: " 1234.5 KB")
+            function formatBytesFixed(bytes) {
+                if (bytes === 0) return "    0.0 B ";
+                const k = 1024;
+                const sizes = ["B ", "KB", "MB", "GB"];
+                const i = Math.min(
+                    Math.floor(Math.log(bytes) / Math.log(k)),
+                    sizes.length - 1,
+                );
+                const val = (bytes / Math.pow(k, i)).toFixed(1);
+                return val.padStart(7) + " " + sizes[i];
+            }
+
+            // Heartbeat countdown (15s interval)
+            const HEARTBEAT_INTERVAL = 15;
+            function formatHeartbeatCountdown(iso) {
+                if (!iso) return "-";
+                const lastBeat = new Date(iso).getTime();
+                const elapsed = Math.floor((Date.now() - lastBeat) / 1000);
+                const remaining =
+                    HEARTBEAT_INTERVAL - (elapsed % HEARTBEAT_INTERVAL) - 1;
+                if (remaining <= 0) return "now";
+                return remaining + "s";
+            }
+
+            function showToast(message, type = "success") {
+                const existing = document.querySelector(".toast");
+                if (existing) existing.remove();
+
+                const toast = document.createElement("div");
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+
+            // ── API 호출 ──
+
+            async function fetchStats() {
+                try {
+                    const res = await fetch(`${API_BASE}/api/stats`);
+                    if (!res.ok) throw new Error(res.statusText);
+                    const data = await res.json();
+
+                    document.getElementById("stat-sessions").textContent =
+                        data.active_sessions;
+                    document.getElementById("stat-players").textContent =
+                        data.total_players;
+                    document.getElementById("stat-ports").textContent =
+                        `${data.port_range_start}-${data.port_range_end}`;
+                    document.getElementById("stat-uptime").textContent =
+                        formatUptime(data.uptime_seconds);
+                    document.getElementById("stat-total-traffic").textContent =
+                        formatBytes(data.total_bytes_transferred);
+
+                    // Compute real-time rate from cumulative totals
+                    const rateIn = data.total_bytes_in - lastTotalBytesIn;
+                    const rateOut = data.total_bytes_out - lastTotalBytesOut;
+                    lastTotalBytesIn = data.total_bytes_in;
+                    lastTotalBytesOut = data.total_bytes_out;
+                    document.getElementById("stat-rate").textContent =
+                        formatBytes(rateIn + rateOut) + "/s";
+
+                    setStatus(true);
+                } catch (e) {
+                    setStatus(false);
+                    console.error("Stats fetch error:", e);
+                }
+            }
+
+            async function fetchSessions() {
+                try {
+                    const res = await fetch(`${API_BASE}/api/sessions`);
+                    if (!res.ok) throw new Error(res.statusText);
+                    const sessions = await res.json();
+
+                    document.getElementById("session-count").textContent =
+                        `${sessions.length}개`;
+
+                    const tbody = document.getElementById("sessions-body");
+                    if (sessions.length === 0) {
+                        tbody.innerHTML = `
+            <tr>
+              <td colspan="9" class="text-center py-8 text-[hsl(210,5%,50%)]">
+                활성 세션이 없습니다
+              </td>
+            </tr>`;
+                        return;
+                    }
+
+                    // Remove placeholder/loading rows
+                    tbody
+                        .querySelectorAll("tr:not([data-port])")
+                        .forEach((r) => r.remove());
+
+                    const existingRows =
+                        tbody.querySelectorAll("tr[data-port]");
+                    const existingMap = {};
+                    existingRows.forEach((row) => {
+                        existingMap[row.dataset.port] = row;
+                    });
+
+                    const seenPorts = new Set();
+
+                    // Update or create rows
+                    sessions.forEach((s) => {
+                        recordTraffic(
+                            s.assigned_port,
+                            s.bytes_in,
+                            s.bytes_out,
+                            s.interval_in,
+                            s.interval_out,
+                        );
+                        seenPorts.add(String(s.assigned_port));
+
+                        const existing = existingMap[String(s.assigned_port)];
+                        if (existing) {
+                            // Update text content only — preserve DOM nodes
+                            const cells = existing.children;
+                            // [0] client_id — static
+                            // [1] port — static
+                            // [2] player count
+                            cells[2].textContent = s.player_count + "명";
+                            cells[2].onclick = () =>
+                                openPlayerModal(s.assigned_port, s.players);
+                            // [3] traffic
+                            const trafficDivs =
+                                cells[3].querySelectorAll("div");
+                            trafficDivs[0].textContent =
+                                "↓ " + formatBytesFixed(s.interval_in) + "/s";
+                            trafficDivs[1].textContent =
+                                "↑ " + formatBytesFixed(s.interval_out) + "/s";
+                            cells[3].onclick = () =>
+                                openTrafficModal(
+                                    s.assigned_port,
+                                    s.bytes_in,
+                                    s.bytes_out,
+                                    s.interval_in,
+                                    s.interval_out,
+                                );
+                            // [4] created_at — static
+                            // [5] heartbeat
+                            cells[5].textContent = formatHeartbeatCountdown(
+                                s.last_heartbeat,
+                            );
+                            // [6] status — static unless changed
+                            // [7] button — static
+                        } else {
+                            // Create new row
+                            const tr = document.createElement("tr");
+                            tr.dataset.port = s.assigned_port;
+                            tr.innerHTML = `
+              <td class="font-mono text-xs">${escapeHtml(s.client_id)}</td>
+              <td><code class="bg-[hsl(220,15%,16%)] px-1.5 py-0.5 rounded text-xs">${s.assigned_port}</code></td>
+              <td class="clickable">${s.player_count}명</td>
+              <td class="text-xs clickable">
+                <div style="font-family:monospace;white-space:pre">↓ ${formatBytesFixed(s.interval_in)}/s</div>
+                <div style="font-family:monospace;white-space:pre">↑ ${formatBytesFixed(s.interval_out)}/s</div>
+              </td>
+              <td class="text-sm text-[hsl(210,5%,55%)]">${formatTime(s.created_at)}</td>
+              <td class="text-sm text-[hsl(210,5%,55%)]" style="font-family:monospace">${formatHeartbeatCountdown(s.last_heartbeat)}</td>
+              <td><span class="flex items-center gap-1.5 text-sm"><span class="status-dot ${s.closed ? "offline" : "online"}"></span>${s.closed ? "종료됨" : "활성"}</span></td>
+              <td>${!s.closed ? '<button class="btn-danger">종료</button>' : ""}</td>`;
+                            // Bind onclick for clickable cells
+                            tr.children[2].onclick = () =>
+                                openPlayerModal(s.assigned_port, s.players);
+                            tr.children[3].onclick = () =>
+                                openTrafficModal(
+                                    s.assigned_port,
+                                    s.bytes_in,
+                                    s.bytes_out,
+                                    s.interval_in,
+                                    s.interval_out,
+                                );
+                            const closeBtn = tr.querySelector(".btn-danger");
+                            if (closeBtn)
+                                closeBtn.onclick = () =>
+                                    closeSession(s.assigned_port);
+                            tbody.appendChild(tr);
+                        }
+                    });
+
+                    // Remove rows for ports that no longer exist
+                    existingRows.forEach((row) => {
+                        if (!seenPorts.has(row.dataset.port)) {
+                            row.remove();
+                        }
+                    });
+
+                    setStatus(true);
+                } catch (e) {
+                    setStatus(false);
+                    console.error("Sessions fetch error:", e);
+                }
+            }
+
+            async function closeSession(port) {
+                if (!confirm(`포트 ${port} 세션을 강제 종료하시겠습니까?`))
+                    return;
+
+                try {
+                    const res = await fetch(`${API_BASE}/api/session/close`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ port }),
+                    });
+                    if (!res.ok) throw new Error(res.statusText);
+                    showToast(`포트 ${port} 세션이 종료되었습니다`);
+                    refreshAll();
+                } catch (e) {
+                    showToast("세션 종료 실패", "error");
+                    console.error("Close session error:", e);
+                }
+            }
+
+            function setStatus(online) {
+                const el = document.getElementById("status-indicator");
+                el.innerHTML = `
+        <span class="status-dot ${online ? "online" : "offline"}"></span>
+        ${online ? "연결됨" : "연결 끊김"}
+      `;
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement("div");
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function openModal(title, contentHTML) {
+                closeModal();
+                const overlay = document.createElement("div");
+                overlay.className = "modal-overlay";
+                overlay.id = "modal-overlay";
+                overlay.onclick = (e) => {
+                    if (e.target === overlay) closeModal();
+                };
+                overlay.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="font-bold text-lg">${title}</h3>
+                            <button class="modal-close" onclick="closeModal()">&times;</button>
+                        </div>
+                        ${contentHTML}
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            }
+
+            function closeModal() {
+                if (window._trafficLiveInterval) {
+                    clearInterval(window._trafficLiveInterval);
+                    window._trafficLiveInterval = null;
+                }
+                const existing = document.getElementById("modal-overlay");
+                if (existing) existing.remove();
+            }
+
+            // Close on Escape key
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") closeModal();
+            });
+
+            function openTrafficModal(
+                port,
+                bytesIn,
+                bytesOut,
+                intervalIn,
+                intervalOut,
+            ) {
+                const total = bytesIn + bytesOut;
+                const intTotal = intervalIn + intervalOut;
+                const inPct =
+                    intTotal > 0
+                        ? Math.round((intervalIn / intTotal) * 100)
+                        : 50;
+                const outPct = 100 - inPct;
+
+                openModal(
+                    `트래픽 상세 — 포트 ${port}`,
+                    `
+                    <div class="space-y-6" id="traffic-modal-body">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <div class="text-xs text-[hsl(210,5%,50%)] mb-1">수신 (↓)</div>
+                                <div class="text-xl font-bold" id="tm-in" style="color: hsl(210, 80%, 55%)">${formatBytes(intervalIn)}/s</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-[hsl(210,5%,50%)] mb-1">송신 (↑)</div>
+                                <div class="text-xl font-bold" id="tm-out" style="color: hsl(190, 70%, 50%)">${formatBytes(intervalOut)}/s</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-[hsl(210,5%,50%)] mb-1">총합</div>
+                                <div class="text-xl font-bold gradient-text" id="tm-total">${formatBytes(total)}</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-[hsl(210,5%,50%)] mb-2">비율</div>
+                            <div class="flex gap-1 h-4 rounded-full overflow-hidden">
+                                <div id="tm-bar-in" style="width:${inPct}%; background: hsl(210, 80%, 55%)" class="rounded-l-full"></div>
+                                <div id="tm-bar-out" style="width:${outPct}%; background: hsl(190, 70%, 50%)" class="rounded-r-full"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-[hsl(210,5%,50%)] mt-1">
+                                <span id="tm-pct-in">↓ ${inPct}%</span>
+                                <span id="tm-pct-out">↑ ${outPct}%</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-[hsl(210,5%,50%)] mb-3">실시간 송수신 추이</div>
+                            <div class="glass-card p-4" id="tm-graph-container">
+                                <div class="text-center py-6 text-xs text-[hsl(210,5%,50%)]">데이터 수집 중...</div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card p-4">
+                            <div class="text-xs text-[hsl(210,5%,50%)] mb-2">설명</div>
+                            <ul class="text-sm space-y-1 text-[hsl(210,10%,70%)]">
+                                <li><strong>수신 (↓)</strong>: 외부 플레이어 → MSPB 서버 → 로컬 MC 서버</li>
+                                <li><strong>송신 (↑)</strong>: 로컬 MC 서버 → MSPB 서버 → 외부 플레이어</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                );
+
+                // Live update interval
+                const liveInterval = setInterval(() => {
+                    if (!document.getElementById("traffic-modal-body")) {
+                        clearInterval(liveInterval);
+                        return;
+                    }
+                    updateTrafficModalContent(port);
+                }, 1000);
+
+                // Store interval so we can clear it when modal closes
+                window._trafficLiveInterval = liveInterval;
+            }
+
+            function updateTrafficModalContent(port) {
+                const ih = intervalHistory[port];
+                const th = trafficHistory[port];
+                if (!ih || ih.in.length === 0) return;
+
+                const latestIntervalIn = ih.in[ih.in.length - 1].v;
+                const latestIntervalOut = ih.out[ih.out.length - 1].v;
+                const intTotal = latestIntervalIn + latestIntervalOut;
+                const inPct =
+                    intTotal > 0
+                        ? Math.round((latestIntervalIn / intTotal) * 100)
+                        : 50;
+                const outPct = 100 - inPct;
+
+                const elIn = document.getElementById("tm-in");
+                const elOut = document.getElementById("tm-out");
+                const elTotal = document.getElementById("tm-total");
+                const elBarIn = document.getElementById("tm-bar-in");
+                const elBarOut = document.getElementById("tm-bar-out");
+                const elPctIn = document.getElementById("tm-pct-in");
+                const elPctOut = document.getElementById("tm-pct-out");
+
+                if (elIn)
+                    elIn.textContent = formatBytes(latestIntervalIn) + "/s";
+                if (elOut)
+                    elOut.textContent = formatBytes(latestIntervalOut) + "/s";
+                if (th && th.in.length > 0) {
+                    const cumulative =
+                        th.in[th.in.length - 1].v + th.out[th.out.length - 1].v;
+                    if (elTotal) elTotal.textContent = formatBytes(cumulative);
+                }
+                if (elBarIn) elBarIn.style.width = inPct + "%";
+                if (elBarOut) elBarOut.style.width = outPct + "%";
+                if (elPctIn) elPctIn.textContent = "↓ " + inPct + "%";
+                if (elPctOut) elPctOut.textContent = "↑ " + outPct + "%";
+
+                // Rebuild graph
+                const graphW = 560;
+                const graphH = 160;
+                const pad = { top: 20, right: 50, bottom: 24, left: 50 };
+                const plotW = graphW - pad.left - pad.right;
+                const plotH = graphH - pad.top - pad.bottom;
+
+                // Use intervalHistory for the graph (real-time rate, not cumulative)
+                const gih = intervalHistory[port];
+                if (!gih || gih.in.length < 2) return;
+
+                // Use separate scales for in/out so both are always visible
+                const maxIn = Math.max(...gih.in.map((d) => d.v), 1);
+                const maxOut = Math.max(...gih.out.map((d) => d.v), 1);
+                const maxVal = Math.max(maxIn, maxOut);
+
+                // Normalize each series to its own max, then scale to plotH
+                function buildPathNorm(data, seriesMax) {
+                    if (data.length < 2) return "";
+                    const step = plotW / Math.max(data.length - 1, 1);
+                    return data
+                        .map((d, i) => {
+                            const x = pad.left + i * step;
+                            const y =
+                                pad.top +
+                                plotH -
+                                (seriesMax > 0 ? (d.v / seriesMax) * plotH : 0);
+                            return (
+                                (i === 0 ? "M" : "L") +
+                                x.toFixed(1) +
+                                "," +
+                                y.toFixed(1)
+                            );
+                        })
+                        .join(" ");
+                }
+
+                function buildAreaNorm(data, seriesMax) {
+                    if (data.length < 2) return "";
+                    const step = plotW / Math.max(data.length - 1, 1);
+                    const line = data
+                        .map((d, i) => {
+                            const x = pad.left + i * step;
+                            const y =
+                                pad.top +
+                                plotH -
+                                (seriesMax > 0 ? (d.v / seriesMax) * plotH : 0);
+                            return (
+                                (i === 0 ? "M" : "L") +
+                                x.toFixed(1) +
+                                "," +
+                                y.toFixed(1)
+                            );
+                        })
+                        .join(" ");
+                    const lastX = pad.left + (data.length - 1) * step;
+                    return (
+                        line +
+                        " L" +
+                        lastX.toFixed(1) +
+                        "," +
+                        (pad.top + plotH) +
+                        " L" +
+                        pad.left +
+                        "," +
+                        (pad.top + plotH) +
+                        " Z"
+                    );
+                }
+
+                const inPath = buildPathNorm(gih.in, maxIn);
+                const outPath = buildPathNorm(gih.out, maxOut);
+                const inArea = buildAreaNorm(gih.in, maxIn);
+                const outArea = buildAreaNorm(gih.out, maxOut);
+
+                // Y-axis labels: show in scale on left, out scale on right
+                const yLabelsIn = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        const val = formatBytes(Math.round(maxIn * pct));
+                        return (
+                            '<text x="' +
+                            (pad.left - 6) +
+                            '" y="' +
+                            (y + 3) +
+                            '" text-anchor="end" fill="hsl(210,80%,55%)" font-size="9">' +
+                            val +
+                            "</text>"
+                        );
+                    })
+                    .join("");
+
+                const yLabelsOut = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        const val = formatBytes(Math.round(maxOut * pct));
+                        return (
+                            '<text x="' +
+                            (pad.left + plotW + 6) +
+                            '" y="' +
+                            (y + 3) +
+                            '" text-anchor="start" fill="hsl(190,70%,50%)" font-size="9">' +
+                            val +
+                            "</text>"
+                        );
+                    })
+                    .join("");
+
+                const gridLines = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        return (
+                            '<line x1="' +
+                            pad.left +
+                            '" y1="' +
+                            y +
+                            '" x2="' +
+                            (pad.left + plotW) +
+                            '" y2="' +
+                            y +
+                            '" stroke="hsl(220,10%,16%)" stroke-width="0.5"/>'
+                        );
+                    })
+                    .join("");
+
+                const xLabel =
+                    '<text x="' +
+                    (pad.left + plotW / 2) +
+                    '" y="' +
+                    (graphH - 2) +
+                    '" text-anchor="middle" fill="hsl(210,5%,45%)" font-size="9">최근 ' +
+                    gih.in.length +
+                    "초</text>";
+
+                const container = document.getElementById("tm-graph-container");
+                if (container) {
+                    container.innerHTML =
+                        gih.in.length > 1
+                            ? '<svg viewBox="0 0 ' +
+                              graphW +
+                              " " +
+                              graphH +
+                              '" class="w-full" style="max-height:180px">' +
+                              gridLines +
+                              yLabelsIn +
+                              yLabelsOut +
+                              xLabel +
+                              '<path d="' +
+                              inArea +
+                              '" fill="hsl(210,80%,55%)" fill-opacity="0.12"/>' +
+                              '<path d="' +
+                              outArea +
+                              '" fill="hsl(190,70%,50%)" fill-opacity="0.12"/>' +
+                              '<path d="' +
+                              inPath +
+                              '" fill="none" stroke="hsl(210,80%,55%)" stroke-width="1.5"/>' +
+                              '<path d="' +
+                              outPath +
+                              '" fill="none" stroke="hsl(190,70%,50%)" stroke-width="1.5"/>' +
+                              "</svg>" +
+                              '<div class="flex justify-center gap-6 text-xs text-[hsl(210,5%,50%)] mt-2">' +
+                              '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(210,80%,55%)"></span>수신 (↓) ' +
+                              formatBytes(maxIn) +
+                              "/s max</span>" +
+                              '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(190,70%,50%)"></span>송신 (↑) ' +
+                              formatBytes(maxOut) +
+                              "/s max</span>" +
+                              "</div>"
+                            : '<div class="text-center py-6 text-xs text-[hsl(210,5%,50%)]">데이터 수집 중... (약 2초 후 그래프 표시)</div>';
+                }
+            }
+
+            function openPlayerModal(port, players) {
+                const playerList =
+                    players.length > 0
+                        ? players
+                              .map(
+                                  (p) => `
+                        <div class="glass-card p-4 flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+                                ${escapeHtml(p.name.substring(0, 2).toUpperCase())}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-bold text-sm">${escapeHtml(p.name)}</div>
+                                <div class="text-xs text-[hsl(210,5%,50%)] mt-1 space-y-0.5">
+                                    <div>UUID: <code class="bg-[hsl(220,15%,16%)] px-1 rounded">${escapeHtml(p.uuid || "-")}</code></div>
+                                    <div>접속 IP: <code class="bg-[hsl(220,15%,16%)] px-1 rounded">${escapeHtml(p.addr)}</code></div>
+                                    <div>접속 시간: ${formatTime(p.connected_at)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                              )
+                              .join("")
+                        : '<div class="text-center py-8 text-[hsl(210,5%,50%)]">접속 중인 플레이어가 없습니다</div>';
+
+                openModal(
+                    `플레이어 목록 — 포트 ${port}`,
+                    `
+                    <div class="space-y-3">
+                        <div class="text-sm text-[hsl(210,5%,50%)] mb-2">총 ${players.length}명 접속 중</div>
+                        ${playerList}
+                    </div>
+                `,
+                );
+            }
+
+            function refreshAll() {
+                fetchStats();
+                fetchSessions();
+                updateGlobalGraph();
+            }
+
+            // ── Global Traffic Graph ──
+
+            function buildGraphSVG(inData, outData, graphW, graphH) {
+                const pad = { top: 20, right: 50, bottom: 24, left: 50 };
+                const plotW = graphW - pad.left - pad.right;
+                const plotH = graphH - pad.top - pad.bottom;
+
+                const maxIn = Math.max(...inData.map((d) => d.v), 1);
+                const maxOut = Math.max(...outData.map((d) => d.v), 1);
+
+                function buildPathNorm(data, seriesMax) {
+                    if (data.length < 2) return "";
+                    const step = plotW / Math.max(data.length - 1, 1);
+                    return data
+                        .map((d, i) => {
+                            const x = pad.left + i * step;
+                            const y =
+                                pad.top +
+                                plotH -
+                                (seriesMax > 0 ? (d.v / seriesMax) * plotH : 0);
+                            return (
+                                (i === 0 ? "M" : "L") +
+                                x.toFixed(1) +
+                                "," +
+                                y.toFixed(1)
+                            );
+                        })
+                        .join(" ");
+                }
+
+                function buildAreaNorm(data, seriesMax) {
+                    if (data.length < 2) return "";
+                    const step = plotW / Math.max(data.length - 1, 1);
+                    const line = data
+                        .map((d, i) => {
+                            const x = pad.left + i * step;
+                            const y =
+                                pad.top +
+                                plotH -
+                                (seriesMax > 0 ? (d.v / seriesMax) * plotH : 0);
+                            return (
+                                (i === 0 ? "M" : "L") +
+                                x.toFixed(1) +
+                                "," +
+                                y.toFixed(1)
+                            );
+                        })
+                        .join(" ");
+                    const lastX = pad.left + (data.length - 1) * step;
+                    return (
+                        line +
+                        " L" +
+                        lastX.toFixed(1) +
+                        "," +
+                        (pad.top + plotH) +
+                        " L" +
+                        pad.left +
+                        "," +
+                        (pad.top + plotH) +
+                        " Z"
+                    );
+                }
+
+                const inPath = buildPathNorm(inData, maxIn);
+                const outPath = buildPathNorm(outData, maxOut);
+                const inArea = buildAreaNorm(inData, maxIn);
+                const outArea = buildAreaNorm(outData, maxOut);
+
+                const yLabelsIn = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        const val = formatBytes(Math.round(maxIn * pct));
+                        return (
+                            '<text x="' +
+                            (pad.left - 6) +
+                            '" y="' +
+                            (y + 3) +
+                            '" text-anchor="end" fill="hsl(210,80%,55%)" font-size="9">' +
+                            val +
+                            "</text>"
+                        );
+                    })
+                    .join("");
+
+                const yLabelsOut = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        const val = formatBytes(Math.round(maxOut * pct));
+                        return (
+                            '<text x="' +
+                            (pad.left + plotW + 6) +
+                            '" y="' +
+                            (y + 3) +
+                            '" text-anchor="start" fill="hsl(190,70%,50%)" font-size="9">' +
+                            val +
+                            "</text>"
+                        );
+                    })
+                    .join("");
+
+                const gridLines = [0, 0.5, 1]
+                    .map((pct) => {
+                        const y = pad.top + plotH - pct * plotH;
+                        return (
+                            '<line x1="' +
+                            pad.left +
+                            '" y1="' +
+                            y +
+                            '" x2="' +
+                            (pad.left + plotW) +
+                            '" y2="' +
+                            y +
+                            '" stroke="hsl(220,10%,16%)" stroke-width="0.5"/>'
+                        );
+                    })
+                    .join("");
+
+                const xLabel =
+                    '<text x="' +
+                    (pad.left + plotW / 2) +
+                    '" y="' +
+                    (graphH - 2) +
+                    '" text-anchor="middle" fill="hsl(210,5%,45%)" font-size="9">최근 ' +
+                    inData.length +
+                    "초</text>";
+
+                return (
+                    '<svg viewBox="0 0 ' +
+                    graphW +
+                    " " +
+                    graphH +
+                    '" class="w-full" style="max-height:200px">' +
+                    gridLines +
+                    yLabelsIn +
+                    yLabelsOut +
+                    xLabel +
+                    '<path d="' +
+                    inArea +
+                    '" fill="hsl(210,80%,55%)" fill-opacity="0.12"/>' +
+                    '<path d="' +
+                    outArea +
+                    '" fill="hsl(190,70%,50%)" fill-opacity="0.12"/>' +
+                    '<path d="' +
+                    inPath +
+                    '" fill="none" stroke="hsl(210,80%,55%)" stroke-width="1.5"/>' +
+                    '<path d="' +
+                    outPath +
+                    '" fill="none" stroke="hsl(190,70%,50%)" stroke-width="1.5"/>' +
+                    "</svg>" +
+                    '<div class="flex justify-center gap-6 text-xs text-[hsl(210,5%,50%)] mt-2">' +
+                    '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(210,80%,55%)"></span>수신 (↓) ' +
+                    formatBytes(maxIn) +
+                    "/s max</span>" +
+                    '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(190,70%,50%)"></span>송신 (↑) ' +
+                    formatBytes(maxOut) +
+                    "/s max</span>" +
+                    "</div>"
+                );
+            }
+
+            function updateGlobalGraph() {
+                // Merge all ports' intervalHistory into one combined series
+                const allPorts = Object.keys(intervalHistory);
+                if (allPorts.length === 0) return;
+
+                // Find the max length across all ports
+                let maxLen = 0;
+                allPorts.forEach((port) => {
+                    const ih = intervalHistory[port];
+                    if (ih.in.length > maxLen) maxLen = ih.in.length;
+                });
+                if (maxLen < 2) return;
+
+                // Sum interval values across all ports for each time index
+                const mergedIn = [];
+                const mergedOut = [];
+                for (let i = 0; i < maxLen; i++) {
+                    let sumIn = 0;
+                    let sumOut = 0;
+                    let t = 0;
+                    allPorts.forEach((port) => {
+                        const ih = intervalHistory[port];
+                        if (i < ih.in.length) {
+                            sumIn += ih.in[i].v;
+                            sumOut += ih.out[i].v;
+                            t = ih.in[i].t;
+                        }
+                    });
+                    mergedIn.push({ t, v: sumIn });
+                    mergedOut.push({ t, v: sumOut });
+                }
+
+                const container = document.getElementById(
+                    "global-graph-container",
+                );
+                const label = document.getElementById("global-graph-label");
+                if (container) {
+                    container.innerHTML = buildGraphSVG(
+                        mergedIn,
+                        mergedOut,
+                        800,
+                        180,
+                    );
+                }
+                if (label) {
+                    const latest = mergedIn[mergedIn.length - 1];
+                    const latestOut = mergedOut[mergedOut.length - 1];
+                    label.textContent =
+                        "↓ " +
+                        formatBytes(latest.v) +
+                        "/s  ↑ " +
+                        formatBytes(latestOut.v) +
+                        "/s";
+                }
+            }
+
+            // ── 초기화 ──
+
+            refreshAll();
+            refreshInterval = setInterval(refreshAll, 1000); // 1초마다 갱신
+        </script>
+    </body>
+</html>

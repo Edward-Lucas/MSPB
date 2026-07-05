@@ -1,0 +1,15 @@
+# MSPB Client winres 설정
+client:
+  icon:
+    - resources/client.ico
+  manifest: resources/client.manifest
+  info:
+    companyName: "MSPB"
+    fileDescription: "MSPB - Minecraft Server Port Bridge (Host Client)"
+    fileVersion: "1.0.0.0"
+    internalName: "mspb-client"
+    originalFilename: "mspb-client.exe"
+    productName: "MSPB Client"
+    productVersion: "1.0.0.0"
+    legalCopyright: "Copyright (C) 2026 MiFun"
+    comments: "마인크래프트 터널링 서비스 호스트 클라이언트"

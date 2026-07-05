@@ -1,0 +1,15 @@
+# MSPB Server winres 설정
+server:
+  icon:
+    - resources/server.ico
+  manifest: resources/server.manifest
+  info:
+    companyName: "MSPB"
+    fileDescription: "MSPB - Minecraft Server Port Bridge (Central Server)"
+    fileVersion: "1.0.0.0"
+    internalName: "mspb-server"
+    originalFilename: "mspb-server.exe"
+    productName: "MSPB Server"
+    productVersion: "1.0.0.0"
+    legalCopyright: "Copyright (C) 2026 MiFun"
+    comments: "마인크래프트 터널링 서비스 중앙 서버"

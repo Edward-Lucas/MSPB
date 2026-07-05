@@ -1,0 +1,991 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<!doctype html>
+<html lang="ko" class="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>MSPB - Minecraft Server Port Bridge</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwindcss.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: { DEFAULT: "hsl(210, 80%, 55%)" },
+                            secondary: { DEFAULT: "hsl(190, 70%, 50%)" },
+                            background: { DEFAULT: "hsl(220, 20%, 8%)" },
+                            foreground: { DEFAULT: "hsl(210, 10%, 90%)" },
+                            card: { DEFAULT: "hsl(220, 15%, 12%)" },
+                            "card-foreground": {
+                                DEFAULT: "hsl(210, 10%, 90%)",
+                            },
+                            muted: { DEFAULT: "hsl(220, 10%, 18%)" },
+                            "muted-foreground": {
+                                DEFAULT: "hsl(210, 5%, 55%)",
+                            },
+                            border: { DEFAULT: "hsl(220, 10%, 20%)" },
+                            accent: { DEFAULT: "hsl(220, 10%, 25%)" },
+                        },
+                        borderRadius: {
+                            "2xl": "1rem",
+                            "3xl": "1.5rem",
+                        },
+                    },
+                },
+            };
+        </script>
+        <style>
+            /* Liquid Glass Design Tokens */
+            :root {
+                --gradient-primary: linear-gradient(
+                    135deg,
+                    hsl(210, 80%, 55%),
+                    hsl(190, 70%, 50%)
+                );
+                --gradient-text: linear-gradient(
+                    135deg,
+                    hsl(210, 80%, 55%),
+                    hsl(190, 70%, 50%)
+                );
+                --glass-bg: hsla(220, 20%, 10%, 0.6);
+                --glass-border: hsla(220, 10%, 22%, 0.5);
+                --shadow-glass: 0 8px 32px 0 hsla(220, 30%, 0%, 0.4);
+                --shadow-glow: 0 0 40px hsla(210, 80%, 55%, 0.2);
+                --blur-amount: 12px;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                background: hsl(220, 20%, 8%);
+                color: hsl(210, 10%, 90%);
+                line-height: 1.6;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            /* Glass Card */
+            .glass-card {
+                border-radius: 1.5rem;
+                border: 1px solid var(--glass-border);
+                background: var(--glass-bg);
+                backdrop-filter: blur(var(--blur-amount));
+                -webkit-backdrop-filter: blur(var(--blur-amount));
+                box-shadow: var(--shadow-glass);
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .glass-card:hover {
+                transform: translateY(-4px);
+                box-shadow: var(--shadow-glass), var(--shadow-glow);
+            }
+
+            /* Gradient Text */
+            .gradient-text {
+                background: var(--gradient-text);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+
+            /* Gradient Button */
+            .gradient-btn {
+                background: hsla(210, 80%, 55%, 0.10);
+                color: hsl(210, 80%, 55%);
+                border: 2px solid hsl(210, 80%, 55%);
+                border-radius: 0.75rem;
+                padding: 0.875rem 2rem;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+            .gradient-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px hsla(210, 80%, 55%, 0.3);
+            }
+            .gradient-btn:active {
+                transform: translateY(0);
+            }
+
+            /* Fade In Up Animation */
+            .fade-in-up {
+                animation: fadeInUp 0.6s ease-out both;
+            }
+            .fade-in-up-delay-1 {
+                animation-delay: 0.1s;
+            }
+            .fade-in-up-delay-2 {
+                animation-delay: 0.2s;
+            }
+            .fade-in-up-delay-3 {
+                animation-delay: 0.3s;
+            }
+            .fade-in-up-delay-4 {
+                animation-delay: 0.4s;
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            /* Float Animation */
+            @keyframes float {
+                0%,
+                100% {
+                    transform: translateY(0px);
+                }
+                50% {
+                    transform: translateY(-12px);
+                }
+            }
+            .float-anim {
+                animation: float 4s ease-in-out infinite;
+            }
+
+            /* Scroll Down Indicator Styles */
+            .scroll-indicator {
+                position: absolute;
+                bottom: 2rem;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+                transition: opacity 0.3s ease;
+            }
+            .scroll-indicator:hover {
+                opacity: 1 !important;
+            }
+            .scroll-mouse {
+                width: 26px;
+                height: 40px;
+                border: 2px solid currentColor;
+                border-radius: 13px;
+                position: relative;
+            }
+            .scroll-mouse::before {
+                content: '';
+                position: absolute;
+                top: 6px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 4px;
+                height: 8px;
+                background: currentColor;
+                border-radius: 2px;
+                animation: scrollWheel 2s ease-in-out infinite;
+            }
+            @keyframes scrollWheel {
+                0% {
+                    opacity: 1;
+                    transform: translateX(-50%) translateY(0);
+                }
+                100% {
+                    opacity: 0;
+                    transform: translateX(-50%) translateY(12px);
+                }
+            }
+            .scroll-line {
+                width: 1px;
+                height: 40px;
+                background: linear-gradient(to bottom, currentColor, transparent);
+                animation: scrollLine 2s ease-in-out infinite;
+            }
+            @keyframes scrollLine {
+                0% {
+                    transform: scaleY(0);
+                    transform-origin: top;
+                }
+                50% {
+                    transform: scaleY(1);
+                    transform-origin: top;
+                }
+                51% {
+                    transform: scaleY(1);
+                    transform-origin: bottom;
+                }
+                100% {
+                    transform: scaleY(0);
+                    transform-origin: bottom;
+                }
+            }
+
+            /* Liquid Shape */
+            .liquid-shape {
+                border-radius: 60% 40% 70% 30% / 60% 30% 70% 40%;
+                animation: morph 8s ease-in-out infinite;
+            }
+            @keyframes morph {
+                0%,
+                100% {
+                    border-radius: 60% 40% 70% 30% / 60% 30% 70% 40%;
+                }
+                50% {
+                    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+                }
+            }
+
+            /* Hero background blobs */
+            .hero-blob {
+                position: absolute;
+                filter: blur(80px);
+                opacity: 0.15;
+                pointer-events: none;
+            }
+
+            /* Section */
+            section {
+                position: relative;
+            }
+
+            /* Smooth scroll */
+            html {
+                scroll-behavior: smooth;
+            }
+
+/* Server Load Section */
+            .load-section {
+                border-top: 1px solid hsl(220, 10%, 14%);
+                border-bottom: 1px solid hsl(220, 10%, 14%);
+            }
+            .load-bar-track {
+                height: 10px;
+                border-radius: 5px;
+                background: hsl(220, 10%, 14%);
+                overflow: hidden;
+            }
+            .load-bar-fill {
+                height: 100%;
+                border-radius: 5px;
+                transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background 0.6s ease;
+            }
+
+            /* Architecture diagram */
+            .arch-line {
+                stroke: hsl(210, 80%, 55%);
+                stroke-width: 2;
+                fill: none;
+                stroke-dasharray: 8 4;
+                animation: dash 1.5s linear infinite;
+            }
+            @keyframes dash {
+                to {
+                    stroke-dashoffset: -24;
+                }
+            }
+        </style>
+    </head>
+    <body class="bg-background text-foreground">
+        <!-- Hero Section -->
+        <section
+            class="relative min-h-screen flex items-center justify-center overflow-hidden"
+        >
+            <!-- Background blobs -->
+            <div
+                class="hero-blob liquid-shape w-[500px] h-[500px] bg-primary/30 top-[-100px] left-[-100px]"
+                style="position: absolute"
+            ></div>
+            <div
+                class="hero-blob liquid-shape w-[400px] h-[400px] bg-secondary/20 bottom-[-50px] right-[-80px]"
+                style="position: absolute; animation-delay: 4s"
+            ></div>
+
+            <div class="relative z-10 text-center px-6 max-w-4xl mx-auto">
+                <!-- Logo -->
+                <div
+                    class="mb-8 fade-in-up float-anim"
+                    style="display: inline-block"
+                >
+                    <img
+                        src="/assets/icon.png"
+                        alt="MSPB Icon"
+                        class="w-28 h-28 mx-auto rounded-2xl shadow-lg"
+                    />
+                </div>
+
+                <h1
+                    class="text-5xl md:text-7xl font-extrabold mb-4 fade-in-up fade-in-up-delay-1"
+                >
+                    <span class="gradient-text">MSPB</span>
+                </h1>
+                <p
+                    class="text-xl md:text-2xl text-[hsl(210,10%,60%)] mb-2 fade-in-up fade-in-up-delay-2"
+                >
+                    Minecraft Server Port Bridge
+                </p>
+                <p
+                    class="text-base md:text-lg text-[hsl(210,5%,50%)] max-w-2xl mx-auto mb-10 fade-in-up fade-in-up-delay-3"
+                >
+                    복잡한 공유기 설정 없이, 프로그램 실행 하나로<br
+                        class="hidden md:block"
+                    />
+                    마인크래프트 서버를 외부에 개방하세요.
+                </p>
+
+                <div
+                    class="flex flex-col sm:flex-row gap-4 justify-center items-center fade-in-up fade-in-up-delay-4"
+                >
+                    <a href="#download" class="gradient-btn" onclick="event.preventDefault(); showBanWarning()">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"
+                            />
+                        </svg>
+                        <span class="gradient-text">다운로드</span>
+                    </a>
+                    <a
+                        href="/dashboard-redirect.html"
+                        class="px-8 py-3.5 rounded-xl border border-[hsl(220,10%,22%)] text-[hsl(210,10%,80%)] hover:bg-[hsl(220,15%,15%)] transition-colors font-semibold text-base"
+                    >
+                        대시보드
+                    </a>
+                </div>
+            </div>
+
+            <!-- Scroll indicator -->
+            <div class="scroll-indicator opacity-40" onclick="window.scrollTo({top: window.innerHeight, behavior: 'smooth'})">
+                <div class="scroll-mouse"></div>
+                <div class="scroll-line"></div>
+            </div>
+        </section>
+
+        <!-- Download & How It Works Combined Section -->
+        <section id="download" class="py-24 px-6">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-3xl md:text-4xl font-bold text-center mb-4">
+                    <span class="gradient-text">진정한 자유</span>
+                </h2>
+                <p
+                    class="text-[hsl(210,5%,50%)] text-center mb-16 max-w-xl mx-auto"
+                >
+                    최대 8명까지 동시에 즐길 수 있습니다.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-8 items-stretch">
+                    <!-- Left: Download Card -->
+                    <div class="glass-card p-8 flex flex-col justify-center">
+                        <div
+                            class="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto mb-6"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="w-8 h-8 text-primary"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 text-center">
+                            MSPB Client
+                        </h3>
+                        <p
+                            class="text-sm text-[hsl(210,5%,50%)] mb-6 text-center"
+                        >
+                            호스트 PC에서 실행하여 로컬 MC 서버를 외부에
+                            개방합니다.
+                        </p>
+                        <a
+                            href="/downloads/mspb-client.exe"
+                            class="gradient-btn mx-auto"
+                            onclick="event.preventDefault(); showBanWarning()"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="w-5 h-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"
+                                />
+                            </svg>
+                            <span class="gradient-text">다운로드</span>
+                        </a>
+                        <!-- Usage hint -->
+                        <div
+                            class="mt-6 pt-5 border-t border-[hsl(220,10%,20%)] text-center"
+                        >
+                            <p class="text-sm text-[hsl(210,5%,50%)]">
+                                <span class="text-primary font-semibold"
+                                    >빠른 시작:</span
+                                >
+                                클라이언트를 실행하면 자동으로 서버에
+                                연결됩니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Architecture Diagram -->
+                    <div class="flex flex-col gap-6">
+                        <!-- Architecture Diagram (SVG) -->
+                        <div
+                            class="glass-card p-6 overflow-x-auto flex-1 flex flex-col justify-between"
+                        >
+                            <svg
+                                viewBox="0 0 720 100"
+                                preserveAspectRatio="xMidYMid meet"
+                                class="w-full h-auto"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <!--
+                                    Layout (total viewBox width = 720, margin = 30 each side)
+                                    usable = 720 - 30*2 = 660
+                                    gap = 30 (between each box)
+                                    boxes: 130 + 180 + 70 + 130 = 510
+                                    3 gaps: 30 * 3 = 90
+                                    remaining = 660 - 510 - 90 = 60 → distribute as extra gap (20 each)
+                                    positions:
+                                      box1: 30 ~ 160        (w=130)
+                                      gap:  160 ~ 210       (50)
+                                      box2: 210 ~ 390       (w=180)
+                                      gap:  390 ~ 440       (50)
+                                      box3: 440 ~ 510       (w=70)
+                                      gap:  510 ~ 560       (50)
+                                      box4: 560 ~ 690       (w=130)
+                                -->
+                                <!-- External Player -->
+                                <rect x="30" y="10" width="130" height="80" rx="14" fill="hsl(220,15%,14%)" stroke="hsl(220,10%,22%)" stroke-width="1.5" />
+                                <text x="95" y="50" text-anchor="middle" dominant-baseline="central" fill="hsl(210,10%,90%)" font-size="20" font-weight="600">MC Client</text>
+
+                                <!-- Central Server -->
+                                <rect x="210" y="10" width="180" height="80" rx="14" fill="hsl(210,80%,55%)" fill-opacity="0.12" stroke="hsl(210,80%,55%)" stroke-width="1.5" />
+                                <text x="300" y="50" text-anchor="middle" dominant-baseline="central" fill="hsl(210,80%,55%)" font-size="20" font-weight="700">Central Server</text>
+
+                                <!-- Tunnel -->
+                                <rect x="440" y="20" width="70" height="60" rx="35" fill="hsl(190,70%,50%)" fill-opacity="0.15" stroke="hsl(190,70%,50%)" stroke-width="1.5" />
+                                <text x="475" y="50" text-anchor="middle" dominant-baseline="central" fill="hsl(190,70%,50%)" font-size="20" font-weight="600">TCP</text>
+
+                                <!-- Local MC Server -->
+                                <rect x="560" y="10" width="130" height="80" rx="14" fill="hsl(220,15%,14%)" stroke="hsl(220,10%,22%)" stroke-width="1.5" />
+                                <text x="625" y="50" text-anchor="middle" dominant-baseline="central" fill="hsl(210,10%,90%)" font-size="20" font-weight="600">LocalHost</text>
+
+                                <!-- Arrow 1 -->
+                                <line x1="174" y1="50" x2="196" y2="50" class="arch-line" />
+                                <polygon points="194,46 204,50 194,54" fill="hsl(210,80%,55%)" />
+
+                                <!-- Arrow 2 -->
+                                <line x1="404" y1="50" x2="426" y2="50" class="arch-line" />
+                                <polygon points="424,46 434,50 424,54" fill="hsl(210,80%,55%)" />
+
+                                <!-- Arrow 3 -->
+                                <line x1="524" y1="50" x2="546" y2="50" class="arch-line" />
+                                <polygon points="544,46 554,50 544,54" fill="hsl(210,80%,55%)" />
+                            </svg>
+                                <line
+                                    x1="148"
+                                    y1="50"
+                                    x2="182"
+                                    y2="50"
+                                    class="arch-line"
+                                />
+                                <polygon
+                                    points="180,45 190,50 180,55"
+                                    fill="hsl(210,80%,55%)"
+                                />
+
+                                <!-- Arrow 2 -->
+                                <line
+                                    x1="378"
+                                    y1="50"
+                                    x2="412"
+                                    y2="50"
+                                    class="arch-line"
+                                />
+                                <polygon
+                                    points="410,45 420,50 410,55"
+                                    fill="hsl(210,80%,55%)"
+                                />
+
+                                <!-- Arrow 3 -->
+                                <line
+                                    x1="498"
+                                    y1="50"
+                                    x2="532"
+                                    y2="50"
+                                    class="arch-line"
+                                />
+                                <polygon
+                                    points="530,45 540,50 530,55"
+                                    fill="hsl(210,80%,55%)"
+                                />
+                            </svg>
+                            <p
+                                class="text-sm text-[hsl(210,5%,50%)] text-center mt-4"
+                            >
+                                MSPB는 중앙 서버를 통해 로컬 MC 서버와 외부
+                                플레이어를 안전하게 연결합니다.
+                            </p>
+                        </div>
+
+                        <!-- Feature Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="glass-card p-5 text-center">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center mx-auto mb-3"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="w-5 h-5 text-primary"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                                        />
+                                    </svg>
+                                </div>
+                                <h3 class="text-sm font-bold mb-1">
+                                    원클릭 터널링
+                                </h3>
+                                <p class="text-xs text-[hsl(210,5%,50%)]">
+                                    실행만으로 즉시 외부 접속이 가능합니다.
+                                    포트포워딩 불필요.
+                                </p>
+                            </div>
+
+                            <div class="glass-card p-5 text-center">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center mx-auto mb-3"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="w-5 h-5 text-secondary"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                        />
+                                    </svg>
+                                </div>
+                                <h3 class="text-sm font-bold mb-1">
+                                    패킷 검증
+                                </h3>
+                                <p class="text-xs text-[hsl(210,5%,50%)]">
+                                    MC 핸드셰이크 패킷 사전 검증으로 비정상
+                                    트래픽을 차단.
+                                </p>
+                            </div>
+
+                            <div class="glass-card p-5 text-center">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center mx-auto mb-3"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="w-5 h-5 text-primary"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                        />
+                                    </svg>
+                                </div>
+                                <h3 class="text-sm font-bold mb-1">패스스루</h3>
+                                <p class="text-xs text-[hsl(210,5%,50%)]">
+                                    TCP 직접 전달로 프록시 오버헤드 최소화, 낮은
+                                    지연.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Server Load Section -->
+        <section id="server-load" class="load-section py-16 px-6">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-2xl md:text-3xl font-bold text-center mb-2">
+                    <span class="gradient-text">서버 현황</span>
+                </h2>
+                <p class="text-sm text-center text-[hsl(210,5%,50%)] mb-10">
+                    중앙 서버의 실시간 부하 상태입니다.
+                </p>
+
+                <!-- Status Indicator -->
+                <div class="text-center mb-8">
+                    <span id="server-status"
+                        class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium border"
+                    >
+                        <span id="status-dot" class="w-2.5 h-2.5 rounded-full"></span>
+                        <span id="status-text">확인 중...</span>
+                    </span>
+                </div>
+
+                <!-- Load Bars -->
+                <div id="load-bars" class="space-y-6">
+                    <!-- Network Load -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-semibold text-[hsl(210,10%,80%)]">네트워크 부하</span>
+                            <span id="net-load-text" class="text-sm font-mono text-[hsl(210,5%,50%)]">--</span>
+                        </div>
+                        <div class="load-bar-track">
+                            <div id="net-load-bar" class="load-bar-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <!-- Port Load -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-semibold text-[hsl(210,10%,80%)]">포트 부하</span>
+                            <span id="port-load-text" class="text-sm font-mono text-[hsl(210,5%,50%)]">--</span>
+                        </div>
+                        <div class="load-bar-track">
+                            <div id="port-load-bar" class="load-bar-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Offline Message -->
+                <p id="offline-msg" class="text-center text-sm text-[hsl(210,5%,50%)] hidden mt-4">
+                    서버에 연결할 수 없습니다.
+                </p>
+            </div>
+        </section>
+
+        <!-- Scroll Progress Indicator -->
+        <div id="scroll-progress" class="fixed top-0 left-0 w-full h-1 z-50">
+            <div class="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-150 ease-out" style="width: 0%"></div>
+        </div>
+
+        <script>
+            // Scroll progress bar
+            window.addEventListener('scroll', function() {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                const scrollPercent = (scrollTop / scrollHeight) * 100;
+                document.querySelector('#scroll-progress div').style.width = scrollPercent + '%';
+
+                // Hide scroll indicator when scrolled
+                const indicator = document.querySelector('.scroll-indicator');
+                if (scrollTop > 100) {
+                    indicator.style.opacity = '0';
+                    indicator.style.pointerEvents = 'none';
+                } else {
+                    indicator.style.opacity = '0.4';
+                    indicator.style.pointerEvents = 'auto';
+                }
+            });
+        </script>
+
+
+
+        <!-- Footer -->
+        <footer class="py-12 px-6 border-t border-[hsl(220,10%,20%)]">
+            <div
+                class="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4"
+            >
+                <div class="flex items-center gap-3">
+                    <img
+                        src="/assets/icon.png"
+                        alt="MSPB"
+                        class="w-8 h-8 rounded-lg"
+                    />
+                    <span class="font-bold text-sm">MSPB</span>
+                    <span class="text-xs text-[hsl(210,5%,50%)]"
+                        >Minecraft Server Port Bridge</span
+                    >
+                </div>
+                <div
+                    class="flex items-center gap-6 text-sm text-[hsl(210,5%,50%)]"
+                >
+                    <span>v1.0.0</span>
+                    <span>Made by MiFun</span>
+                </div>
+            </div>
+        </footer>
+        <!-- Admin 접속 안내 토스트 -->
+        <div
+            id="admin-toast"
+            class="fixed inset-0 z-50 items-center justify-center bg-black/60 backdrop-blur-sm hidden"
+        >
+            <div
+                class="glass-card max-w-md w-full mx-4 p-8 text-center space-y-6"
+            >
+                <div
+                    class="mx-auto w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="w-8 h-8 text-red-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M12 9v2m0 4h.01M12 3l9.09 16.5H2.91L12 3z"
+                        />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-foreground">
+                    대시보드 접속 불가
+                </h3>
+                <p class="text-sm text-[hsl(210,5%,60%)] leading-relaxed">
+                    <code
+                        class="bg-[hsl(220,10%,18%)] px-2 py-1 rounded text-xs"
+                        >http://127.0.0.1:18080/admin</code
+                    >에 접속할 수 없습니다.<br />
+                    대시보드를 사용하려면 아래 프로그램 중 하나를 실행해 주세요.
+                </p>
+                <div
+                    class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left text-sm"
+                >
+                    <div
+                        class="bg-[hsl(220,10%,14%)] rounded-lg p-4 border border-[hsl(220,10%,20%)]"
+                    >
+                        <div class="font-semibold text-foreground mb-1">
+                            서버 관리자
+                        </div>
+                        <code class="text-primary text-xs"
+                            >mspb-server.exe</code
+                        >
+                    </div>
+                    <div
+                        class="bg-[hsl(220,10%,14%)] rounded-lg p-4 border border-[hsl(220,10%,20%)]"
+                    >
+                        <div class="font-semibold text-foreground mb-1">
+                            클라이언트 사용자
+                        </div>
+                        <code class="text-secondary text-xs"
+                            >mspb-client.exe</code
+                        >
+                    </div>
+                </div>
+                <button
+                    onclick="closeAdminToast()"
+                    class="gradient-btn w-full text-sm"
+                >
+                    <span class="gradient-text">확인</span>
+                </button>
+            </div>
+        </div>
+
+        <div
+            id="ban-warning-modal"
+            class="fixed inset-0 z-50 items-center justify-center bg-black/60 backdrop-blur-sm hidden"
+        >
+            <div
+                class="glass-card max-w-md w-full mx-4 p-8 text-center space-y-6"
+            >
+                <div
+                    class="mx-auto w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="w-8 h-8 text-red-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M12 9v2m0 4h.01M12 3l9.09 16.5H2.91L12 3z"
+                        />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-foreground">
+                    ⚠️ IP 밴 기능 경고
+                </h3>
+                <p class="text-sm text-[hsl(210,5%,60%)] leading-relaxed">
+                    <strong class="text-red-400">IP 밴 기능을 사용하면 모든 사용자의 접속이 차단됩니다.</strong><br />
+                    서버에 연결된 <strong>모든 클라이언트</strong>가 접속할 수 없게 됩니다.<br />
+                    정말로 다운로드하시겠습니까?
+                </p>
+                <div
+                    class="bg-[hsl(220,10%,14%)] rounded-lg p-4 border border-red-500/30 text-left text-sm"
+                >
+                    <div class="font-semibold text-red-400 mb-2">⚠️ 주의사항</div>
+                    <ul class="space-y-1 text-[hsl(210,5%,60%)]">
+                        <li>• IP 밴은 <strong>되돌릴 수 없습니다</strong></li>
+                        <li>• <strong>모든 사용자</strong>가 서버에 접속할 수 없게 됩니다</li>
+                        <li>• 신중하게 사용하세요</li>
+                    </ul>
+                </div>
+                <div class="flex gap-3">
+                    <button
+                        onclick="closeBanWarning()"
+                        class="flex-1 px-4 py-3 rounded-xl border border-[hsl(220,10%,22%)] text-[hsl(210,10%,80%)] hover:bg-[hsl(220,15%,15%)] transition-colors font-semibold text-sm"
+                    >
+                        취소
+                    </button>
+                    <a
+                        href="/downloads/mspb-client.exe"
+                        download
+                        class="flex-1 gradient-btn text-sm"
+                        onclick="closeBanWarning()"
+                    >
+                        <span class="gradient-text">다운로드</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function closeAdminToast() {
+                const toast = document.getElementById("admin-toast");
+                toast.classList.add("hidden");
+                toast.classList.remove("flex");
+            }
+
+            async function checkAdminAccess(event) {
+                event.preventDefault();
+                const url = event.currentTarget.href;
+                try {
+                    await fetch(url, {
+                        method: "HEAD",
+                        mode: "no-cors",
+                    });
+                    window.location.href = url;
+                } catch {
+                    const toast = document.getElementById("admin-toast");
+                    toast.classList.remove("hidden");
+                    toast.classList.add("flex");
+                }
+            }
+
+            function showBanWarning() {
+                const modal = document.getElementById("ban-warning-modal");
+                if (modal) {
+                    modal.classList.remove("hidden");
+                    modal.classList.add("flex");
+                }
+            }
+
+            function closeBanWarning() {
+                const modal = document.getElementById("ban-warning-modal");
+                if (modal) {
+                    modal.classList.add("hidden");
+                    modal.classList.remove("flex");
+                }
+            }
+
+            // ── Server Load Polling ──
+
+            function setLoadBar(id, pct) {
+                const bar = document.getElementById(id);
+                const clamped = Math.min(Math.max(pct, 0), 100);
+                bar.style.width = clamped + "%";
+                // Color: green -> yellow -> red
+                if (clamped < 50) {
+                    bar.style.background = "hsl(160, 70%, 45%)";
+                } else if (clamped < 80) {
+                    bar.style.background = "hsl(45, 90%, 55%)";
+                } else {
+                    bar.style.background = "hsl(0, 75%, 55%)";
+                }
+            }
+
+            function setServerStatus(online) {
+                const statusEl = document.getElementById("server-status");
+                const dot = document.getElementById("status-dot");
+                const text = document.getElementById("status-text");
+                const loadBars = document.getElementById("load-bars");
+                const offlineMsg = document.getElementById("offline-msg");
+
+                if (online) {
+                    statusEl.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium border border-emerald-500/30 text-emerald-400 bg-emerald-500/10";
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+                    text.textContent = "서버 온라인";
+                    loadBars.classList.remove("hidden");
+                    offlineMsg.classList.add("hidden");
+                } else {
+                    statusEl.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium border border-red-500/30 text-red-400 bg-red-500/10";
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-red-400";
+                    text.textContent = "서버 오프라인";
+                    loadBars.classList.add("hidden");
+                    offlineMsg.classList.remove("hidden");
+                    document.getElementById("net-load-text").textContent = "--";
+                    document.getElementById("port-load-text").textContent = "--";
+                    setLoadBar("net-load-bar", 0);
+                    setLoadBar("port-load-bar", 0);
+                }
+            }
+
+            async function fetchServerLoad() {
+                try {
+                    const res = await fetch("/api/stats");
+                    if (!res.ok) throw new Error();
+                    const data = await res.json();
+
+                    setServerStatus(true);
+
+                    const netPct = data.network_load || 0;
+                    document.getElementById("net-load-text").textContent = netPct.toFixed(1) + "%";
+                    setLoadBar("net-load-bar", netPct);
+
+                    const portPct = data.port_load || 0;
+                    document.getElementById("port-load-text").textContent = portPct.toFixed(1) + "%";
+                    setLoadBar("port-load-bar", portPct);
+
+                } catch (e) {
+                    setServerStatus(false);
+                }
+            }
+
+            // Initial fetch + 3-second polling
+            fetchServerLoad();
+            setInterval(fetchServerLoad, 3000);
+        </script>
+    </body>
+</html>
