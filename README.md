@@ -17,41 +17,43 @@ https://mspb.r-e.kr
 
 ## 아키텍처
 
-```
-외부 플레이어                     중앙 서버 (공인IP)                        호스트 PC
-    │                                │                                      │
-    │  TCP 연결 (25500~25599)         │                                      │
-    ├───────────────────────────────▶│                                      │
-    │                                │  1. MC 패킷 Peek 검증                │
-    │                                │     (핸드셰이크 0x00 확인)           │
-    │                                │                                      │
-    │                                │  2. yamux 데이터 스트림 열기          │
-    │                                │     ┌─────────────────┐              │
-    │                                │     │ control 스트림   │◄── 하트비트 │
-    │                                │     │ data 스트림      │◄── MC 트래픽│
-    │                                │     └─────────────────┘              │
-    │                                │            │                         │
-    │                                │            ▼                         │
-    │                                │     클라이언트 ◀────────────────────▶│ 로컬 MC 서버
-    │                                │                                      │ 127.0.0.1:25565
-    │                                │                                      │
-    │◀───────────────────────────────────────────────────────────────────────│
-    │        (MC 응답 패킷)                                                   │
+```mermaid
+flowchart LR
+    subgraph Central["중앙 서버 (공인IP)"]
+        S["서버\n(외부 포트 리스닝\nMC 패킷 검증)"]
+        DB_S["서버 대시보드\n127.0.0.1:18080"]
+    end
+
+    subgraph Host["호스트 PC"]
+        CB["클라이언트\n(yamux 세션 유지)"]
+        MC["로컬 MC 서버\n127.0.0.1:25565"]
+        DB_C["클라이언트 대시보드\n127.0.0.1:18080"]
+    end
+
+    P["외부 플레이어"] -->|"TCP (25500~25599)"| S
+    
+    S <-.->|"제어 스트림\n(하트비트/포트)"| CB
+    S -->|"yamux 데이터 스트림 열기"| CB
+    
+    CB <-->|"양방향 트래픽 포워딩"| MC
+
+    DB_S -.-> S
+    DB_C -.-> CB
 ```
 
 ## 빌드
 
-Go 1.21 이상이 필요합니다.
+Go 1.22 이상이 필요합니다.
 
 ```bash
 # 의존성 다운로드
 go mod tidy
 
-# 서버 빌드 (Linux)
-GOOS=linux GOARCH=amd64 go build -o mspb-server ./cmd/server
+# 서버 빌드 (Windows)
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o mspb-server.exe ./cmd/server
 
 # 클라이언트 빌드 (Windows)
-GOOS=windows GOARCH=amd64 go build -o mspb-client.exe ./cmd/client
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o mspb-client.exe ./cmd/client
 ```
 
 > `resources/` 디렉토리에 윈도우 아이콘과 manifest가 포함되어 있어, `winres` 설정(`winres-server.yml`, `winres-client.yml`)을 통해 빌드 시 아이콘이 자동으로 적용됩니다.
