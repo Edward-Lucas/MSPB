@@ -80,6 +80,7 @@
 
             .progress-fill {
                 height: 100%;
+                width: 0%;
                 background: linear-gradient(
                     90deg,
                     hsl(210, 80%, 55%),
@@ -276,7 +277,11 @@
             <div class="spinner"></div>
             <h1>대시보드로 이동 중...</h1>
             <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
+                <div
+                    class="progress-fill"
+                    id="progressFill"
+                    style="width: 0%"
+                ></div>
             </div>
             <div class="status" id="status">서버 연결 확인 중...</div>
         </div>
