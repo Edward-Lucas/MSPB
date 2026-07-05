@@ -7,6 +7,7 @@ package server
 import (
 	"encoding/json"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"time"
@@ -18,13 +19,17 @@ import (
 
 // WebServer 는 외부 웹페이지에 stats API를 제공하는 경량 서버입니다.
 type WebServer struct {
-	portTable *PortTable
-	listener  net.Listener
+	portTable    *PortTable
+	listener     net.Listener
+	lastPollTime time.Time
 }
 
 // NewWebServer 는 웹 서버를 생성합니다.
 func NewWebServer(pt *PortTable) *WebServer {
-	return &WebServer{portTable: pt}
+	return &WebServer{
+		portTable:    pt,
+		lastPollTime: time.Now(),
+	}
 }
 
 // Start 는 웹 서버를 시작합니다.
@@ -63,6 +68,7 @@ func (ws *WebServer) handleStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var totalBytesIn, totalBytesOut int64
+	var totalIntervalIn, totalIntervalOut int64
 	active := 0
 	ws.portTable.portToSession.Range(func(_, value interface{}) bool {
 		sess := value.(*Session)
@@ -71,31 +77,50 @@ func (ws *WebServer) handleStats(w http.ResponseWriter, r *http.Request) {
 		}
 		if !sess.Closed.Load() {
 			active++
-			totalBytesIn += sess.BytesIn.Load()
-			totalBytesOut += sess.BytesOut.Load()
+			curIn := sess.BytesIn.Load()
+			curOut := sess.BytesOut.Load()
+			lastIn := sess.LastBytesIn.Load()
+			lastOut := sess.LastBytesOut.Load()
+			sess.LastBytesIn.Store(curIn)
+			sess.LastBytesOut.Store(curOut)
+			totalBytesIn += curIn
+			totalBytesOut += curOut
+			totalIntervalIn += curIn - lastIn
+			totalIntervalOut += curOut - lastOut
 		}
 		return true
 	})
 
-	totalBytes := totalBytesIn + totalBytesOut
-	percent := 0.0
-	if totalBytes > 0 {
-		pct := float64(totalBytes) / (100 * 1024 * 1024) * 100
+	totalInterval := totalIntervalIn + totalIntervalOut
+	// 초당 전송량 기준: 100MB/s = 100%
+	elapsed := time.Since(ws.lastPollTime).Seconds()
+	ws.lastPollTime = time.Now()
+	netPct := 0.0
+	if totalInterval > 0 && elapsed > 0 {
+		bytesPerSec := float64(totalInterval) / elapsed
+		pct := bytesPerSec / (100 * 1024 * 1024) * 100
+		if pct > 0 && pct < 1 {
+			pct = 1
+		}
 		if pct > 100 {
 			pct = 100
 		}
-		percent = pct
+		netPct = math.Ceil(pct)
 	}
 
 	totalPorts := int(ws.portTable.portRangeEnd - ws.portTable.portRangeStart)
 	portPct := 0.0
 	if totalPorts > 0 {
-		portPct = float64(active) / float64(totalPorts) * 100
+		pct := float64(active) / float64(totalPorts) * 100
+		if pct > 0 && pct < 1 {
+			pct = 1
+		}
+		portPct = math.Ceil(pct)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"network_load": percent,
+		"network_load": netPct,
 		"port_load":    portPct,
 	})
 }

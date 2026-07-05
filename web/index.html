@@ -988,11 +988,11 @@
                     setServerStatus(true);
 
                     const netPct = data.network_load || 0;
-                    document.getElementById("net-load-text").textContent = netPct.toFixed(1) + "%";
+                    document.getElementById("net-load-text").textContent = netPct + "%";
                     setLoadBar("net-load-bar", netPct);
 
                     const portPct = data.port_load || 0;
-                    document.getElementById("port-load-text").textContent = portPct.toFixed(1) + "%";
+                    document.getElementById("port-load-text").textContent = portPct + "%";
                     setLoadBar("port-load-bar", portPct);
 
                 } catch (e) {
