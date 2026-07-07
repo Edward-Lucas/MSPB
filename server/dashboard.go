@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -48,6 +50,8 @@ func (ds *DashboardServer) Start(addr string) error {
 	mux.HandleFunc("/api/stats", ds.handleStats)
 	mux.HandleFunc("/api/session/close", ds.handleCloseSession)
 	mux.HandleFunc("/api/session/toggle-unlimited", ds.handleToggleUnlimited)
+	mux.HandleFunc("/favicon.ico", ds.handleFavicon)
+	mux.HandleFunc("/assets/", ds.handleAssets)
 	mux.HandleFunc("/dashboard", ds.handleDashboardPage)
 	mux.HandleFunc("/dashboard/", ds.handleDashboardPage)
 
@@ -60,7 +64,7 @@ func (ds *DashboardServer) Start(addr string) error {
 	log.Printf("[Dashboard] 대시보드 서버 시작: http://%s", addr)
 
 	srv := &http.Server{
-		Handler:      mux,
+		Handler:      recoveryMiddleware(mux),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
@@ -72,6 +76,19 @@ func (ds *DashboardServer) Start(addr string) error {
 	}()
 
 	return nil
+}
+
+// recoveryMiddleware 는 panic으로부터 복구하고 로그를 남깁니다.
+func recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("[Dashboard] panic recovered: %v\n%s", err, debug.Stack())
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 // handleHealth 는 헬스체크 엔드포인트입니다. 서버가 살아있으면 1x1 투명 GIF를 반환합니다.
@@ -89,6 +106,28 @@ func (ds *DashboardServer) handleHealth(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "image/gif")
 	w.Write(gif)
+}
+
+// handleFavicon 는 favicon.ico 요청에 assets/icon.png를 서빙합니다.
+func (ds *DashboardServer) handleFavicon(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, filepath.Join(ds.webRoot, "assets", "icon.png"))
+}
+
+// handleAssets 는 /assets/ 경로의 정적 파일을 서빙합니다.
+func (ds *DashboardServer) handleAssets(w http.ResponseWriter, r *http.Request) {
+	// /assets/icon.png → assets/icon.png
+	relPath := strings.TrimPrefix(r.URL.Path, "/assets/")
+	fullPath := filepath.Join(ds.webRoot, "assets", relPath)
+
+	// 경로 순회 방지
+	assetsDir, _ := filepath.Abs(filepath.Join(ds.webRoot, "assets"))
+	absFull, _ := filepath.Abs(fullPath)
+	if !strings.HasPrefix(absFull, assetsDir+string(filepath.Separator)) && absFull != assetsDir {
+		http.NotFound(w, r)
+		return
+	}
+
+	http.ServeFile(w, r, fullPath)
 }
 
 // handleDashboardPage 는 dashboard.html을 서빙합니다.

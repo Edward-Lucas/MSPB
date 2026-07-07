@@ -8,27 +8,30 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>MSPB Dashboard</title>
         <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="icon" href="/assets/icon.png" type="image/png" />
         <script>
-            tailwindcss.config = {
-                darkMode: "class",
-                theme: {
-                    extend: {
-                        colors: {
-                            primary: { DEFAULT: "hsl(210, 80%, 55%)" },
-                            secondary: { DEFAULT: "hsl(190, 70%, 50%)" },
-                            background: { DEFAULT: "hsl(220, 20%, 8%)" },
-                            foreground: { DEFAULT: "hsl(210, 10%, 90%)" },
-                            card: { DEFAULT: "hsl(220, 15%, 12%)" },
-                            muted: { DEFAULT: "hsl(220, 10%, 18%)" },
-                            "muted-foreground": {
-                                DEFAULT: "hsl(210, 5%, 55%)",
+            if (typeof tailwindcss !== "undefined") {
+                tailwindcss.config = {
+                    darkMode: "class",
+                    theme: {
+                        extend: {
+                            colors: {
+                                primary: { DEFAULT: "hsl(210, 80%, 55%)" },
+                                secondary: { DEFAULT: "hsl(190, 70%, 50%)" },
+                                background: { DEFAULT: "hsl(220, 20%, 8%)" },
+                                foreground: { DEFAULT: "hsl(210, 10%, 90%)" },
+                                card: { DEFAULT: "hsl(220, 15%, 12%)" },
+                                muted: { DEFAULT: "hsl(220, 10%, 18%)" },
+                                "muted-foreground": {
+                                    DEFAULT: "hsl(210, 5%, 55%)",
+                                },
+                                border: { DEFAULT: "hsl(220, 10%, 20%)" },
+                                destructive: { DEFAULT: "hsl(0, 62%, 50%)" },
                             },
-                            border: { DEFAULT: "hsl(220, 10%, 20%)" },
-                            destructive: { DEFAULT: "hsl(0, 62%, 50%)" },
                         },
                     },
-                },
-            };
+                };
+            }
         </script>
         <style>
             :root {

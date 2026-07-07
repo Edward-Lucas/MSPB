@@ -8,34 +8,37 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>MSPB - Minecraft Server Port Bridge</title>
         <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="icon" href="/assets/icon.png" type="image/png" />
         <script>
-            tailwindcss.config = {
-                darkMode: "class",
-                theme: {
-                    extend: {
-                        colors: {
-                            primary: { DEFAULT: "hsl(210, 80%, 55%)" },
-                            secondary: { DEFAULT: "hsl(190, 70%, 50%)" },
-                            background: { DEFAULT: "hsl(220, 20%, 8%)" },
-                            foreground: { DEFAULT: "hsl(210, 10%, 90%)" },
-                            card: { DEFAULT: "hsl(220, 15%, 12%)" },
-                            "card-foreground": {
-                                DEFAULT: "hsl(210, 10%, 90%)",
+            if (typeof tailwindcss !== "undefined") {
+                tailwindcss.config = {
+                    darkMode: "class",
+                    theme: {
+                        extend: {
+                            colors: {
+                                primary: { DEFAULT: "hsl(210, 80%, 55%)" },
+                                secondary: { DEFAULT: "hsl(190, 70%, 50%)" },
+                                background: { DEFAULT: "hsl(220, 20%, 8%)" },
+                                foreground: { DEFAULT: "hsl(210, 10%, 90%)" },
+                                card: { DEFAULT: "hsl(220, 15%, 12%)" },
+                                "card-foreground": {
+                                    DEFAULT: "hsl(210, 10%, 90%)",
+                                },
+                                muted: { DEFAULT: "hsl(220, 10%, 18%)" },
+                                "muted-foreground": {
+                                    DEFAULT: "hsl(210, 5%, 55%)",
+                                },
+                                border: { DEFAULT: "hsl(220, 10%, 20%)" },
+                                accent: { DEFAULT: "hsl(220, 10%, 25%)" },
                             },
-                            muted: { DEFAULT: "hsl(220, 10%, 18%)" },
-                            "muted-foreground": {
-                                DEFAULT: "hsl(210, 5%, 55%)",
+                            borderRadius: {
+                                "2xl": "1rem",
+                                "3xl": "1.5rem",
                             },
-                            border: { DEFAULT: "hsl(220, 10%, 20%)" },
-                            accent: { DEFAULT: "hsl(220, 10%, 25%)" },
-                        },
-                        borderRadius: {
-                            "2xl": "1rem",
-                            "3xl": "1.5rem",
                         },
                     },
-                },
-            };
+                };
+            }
         </script>
         <style>
             /* Liquid Glass Design Tokens */
@@ -365,7 +368,7 @@
                         <span class="gradient-text">다운로드</span>
                     </a>
                     <a
-                        href="/dashboard-redirect.html"
+                        href="/dashboard-redirect"
                         class="px-8 py-3.5 rounded-xl border border-[hsl(220,10%,22%)] text-[hsl(210,10%,80%)] hover:bg-[hsl(220,15%,15%)] transition-colors font-semibold text-base"
                     >
                         대시보드

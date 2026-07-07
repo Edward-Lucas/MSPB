@@ -5,6 +5,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -35,18 +36,64 @@ func NewTunnelManager(pt *PortTable, publicIP string) *TunnelManager {
 	return &TunnelManager{portTable: pt, publicIP: publicIP}
 }
 
+// botResponse 는 비-yamux 연결(봇/스캐너)에게 보내는 식별 메시지입니다.
+const botResponse = "MSPB - MiFun Server Proxy Bridge\r\nThis is a private tunnel endpoint, not a public service.\r\n"
+
+// connWithReplacedReader 는 읽기만 다른 reader로 대체하고, 쓰기/닫기는 원본 conn을 사용하는 래퍼입니다.
+type connWithReplacedReader struct {
+	reader io.Reader
+	conn   net.Conn
+}
+
+func (w *connWithReplacedReader) Read(p []byte) (int, error)  { return w.reader.Read(p) }
+func (w *connWithReplacedReader) Write(p []byte) (int, error) { return w.conn.Write(p) }
+func (w *connWithReplacedReader) Close() error                { return w.conn.Close() }
+func (w *connWithReplacedReader) LocalAddr() net.Addr         { return w.conn.LocalAddr() }
+func (w *connWithReplacedReader) RemoteAddr() net.Addr        { return w.conn.RemoteAddr() }
+func (w *connWithReplacedReader) SetDeadline(t time.Time) error      { return w.conn.SetDeadline(t) }
+func (w *connWithReplacedReader) SetReadDeadline(t time.Time) error  { return w.conn.SetReadDeadline(t) }
+func (w *connWithReplacedReader) SetWriteDeadline(t time.Time) error { return w.conn.SetWriteDeadline(t) }
+
 // HandleClientConnection 은 클라이언트의 최초 TCP 연결을 처리합니다.
 //
 // 흐름:
 //  1. 클라이언트 TCP 연결 수락
-//  2. yamux 서버 세션 생성 (control 통로)
-//  3. control 스트림에서 Handshake 프레임 수신
-//  4. 포트 할당 → PortAssign 프레임 응답
-//  5. 하트비트 고루틴 시작
-//  6. 데이터 스트림 수신 대기 (외부 접속 → data stream → 로컬 MC)
+//  2. 첫 바이트 peek → yamux 프로토콜 검증 (비-yamux 연결은 식별 메시지 후 종료)
+//  3. yamux 서버 세션 생성 (control 통로)
+//  4. control 스트림에서 Handshake 프레임 수신
+//  5. 포트 할당 → PortAssign 프레임 응답
+//  6. 하트비트 고루틴 시작
+//  7. 데이터 스트림 수신 대기 (외부 접속 → data stream → 로컬 MC)
 func (tm *TunnelManager) HandleClientConnection(conn net.Conn) {
 	remoteAddr := conn.RemoteAddr().String()
 	log.Printf("[Tunnel] 클라이언트 연결: %s", remoteAddr)
+
+	// ── yamux 프로토콜 사전 검증 ──
+	// 첫 1바이트를 미리 읽어서 yamux version(0x00)인지 확인한다.
+	// 봇/스캐너가 보내는 HTTP(SOCKS5 등) 요청은 첫 바이트가 0x00이 아니므로
+	// 여기서 빠르게 걸러낼 수 있다.
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	var versionBuf [1]byte
+	if _, err := io.ReadFull(conn, versionBuf[:]); err != nil {
+		log.Printf("[Tunnel] 첫 바이트 읽기 실패: addr=%s err=%v", remoteAddr, err)
+		conn.Close()
+		return
+	}
+	_ = conn.SetReadDeadline(time.Time{}) // 데드라인 제거
+
+	if versionBuf[0] != 0 {
+		// 비-yamux 프로토콜 — 식별 메시지 전송 후 종료
+		log.Printf("[Tunnel] 비-yamux 프로토콜 감지 (0x%02X): addr=%s", versionBuf[0], remoteAddr)
+		_, _ = conn.Write([]byte(botResponse))
+		conn.Close()
+		return
+	}
+
+	// yamux 정상 경로 — 읽은 바이트를 되돌려서 yamux에 전달
+	wrappedConn := &connWithReplacedReader{
+		reader: io.MultiReader(bytes.NewReader(versionBuf[:]), conn),
+		conn:   conn,
+	}
 
 	// yamux 서버 세션 생성 (이 연결이 control + data 통로의 기반이 됨)
 	yamuxCfg := yamux.DefaultConfig()
@@ -55,7 +102,7 @@ func (tm *TunnelManager) HandleClientConnection(conn net.Conn) {
 	yamuxCfg.KeepAliveInterval = shared.YamuxKeepAliveInterval
 	yamuxCfg.MaxStreamWindowSize = 1024 * 1024 // 1MB
 
-	session, err := yamux.Server(conn, yamuxCfg)
+	session, err := yamux.Server(wrappedConn, yamuxCfg)
 	if err != nil {
 		log.Printf("[Tunnel] yamux 세션 생성 실패: %v", err)
 		conn.Close()
