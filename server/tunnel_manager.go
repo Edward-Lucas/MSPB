@@ -5,6 +5,7 @@
 package server
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -262,40 +263,31 @@ func (tm *TunnelManager) handleExternalConnection(externalConn net.Conn, dataSes
 
 	remoteAddr := externalConn.RemoteAddr().String()
 
-	// Step 1: Peek 첫 패킷 (MC 프로토콜 검증)
+	// Step 1: bufio.Reader로 패킷 경계까지 정확히 읽기 (모드드 클라이언트 대응)
+	bufReader := bufio.NewReaderSize(externalConn, shared.PeekBufferSize)
 	_ = externalConn.SetReadDeadline(time.Now().Add(time.Duration(shared.PeekTimeoutSeconds) * time.Second))
-	peekBuf := make([]byte, shared.PeekBufferSize)
-	n, err := externalConn.Read(peekBuf)
-	if err != nil {
-		log.Printf("[Peek] 첫 패킷 읽기 실패: addr=%s err=%v", remoteAddr, err)
-		return
-	}
-	peekData := peekBuf[:n]
-
-	// Step 2: MC 핸드셰이크 검증
-	mcInfo, consumed, mcErr := shared.PeekMCHandshake(peekData)
-	if mcErr != nil {
-		log.Printf("[Peek] MC 프로토콜 아님 (차단): addr=%s reason=%v", remoteAddr, mcErr)
+	initialData, loginInfo, readErr := shared.ReadInitialPackets(bufReader)
+	_ = externalConn.SetReadDeadline(time.Time{})
+	if readErr != nil {
+		log.Printf("[Peek] MC 프로토콜 아님 (차단): addr=%s reason=%v", remoteAddr, readErr)
 		return // 연결을 조용히 닫음 — 악용 차단
 	}
-	_ = consumed
 
-	log.Printf("[Peek] MC 핸드셰이크 확인: addr=%s proto=%d state=%d", remoteAddr, mcInfo.ProtocolVersion, mcInfo.NextState)
-
-	// Try to extract player info from peek data
 	var playerName, playerUUID string
-	if mcInfo.NextState == 2 {
-		if loginInfo, loginErr := shared.ParseLoginFromPeekData(peekData); loginErr == nil {
-			playerName = loginInfo.PlayerName
-			playerUUID = loginInfo.PlayerUUID
-		}
+	protoVer := 0
+	if loginInfo != nil {
+		playerName = loginInfo.PlayerName
+		playerUUID = loginInfo.PlayerUUID
+		protoVer = loginInfo.ProtocolVersion
 	}
+
+	log.Printf("[Peek] MC 핸드셰이크 확인: addr=%s proto=%d", remoteAddr, protoVer)
 
 	// 세션 조회 (플레이어 추적 + 트래픽 카운터 공용)
 	sess, sessOK := tm.portTable.GetSession(port)
 
 	// Step 2-1: 로그인 접속만 인원 수 체크 (Status는 제외)
-	if mcInfo.NextState == 2 && sessOK {
+	if loginInfo != nil && sessOK {
 		if !sess.IncrementPlayer(shared.MaxPlayersPerClient) {
 			log.Printf("[Data] 인원 초과 거부: addr=%s port=%d (현재 %d/%d)",
 				remoteAddr, port, sess.PlayerCount.Load(), shared.MaxPlayersPerClient)
@@ -323,23 +315,20 @@ func (tm *TunnelManager) handleExternalConnection(externalConn net.Conn, dataSes
 	}
 	defer dataStream.Close()
 
-	// 데드라인 제거 (양방향 복사 중에는 타임아웃 없음)
-	_ = externalConn.SetReadDeadline(time.Time{})
-
-	// peek 데이터를 먼저 데이터 스트림에 전달 (놓치면 안 됨)
-	if _, err := dataStream.Write(peekData); err != nil {
-		log.Printf("[Data] peek 데이터 전달 실패: port=%d err=%v", port, err)
+	// 초기 패킷 데이터를 먼저 데이터 스트림에 전달 (놓치면 안 됨)
+	if _, err := dataStream.Write(initialData); err != nil {
+		log.Printf("[Data] 초기 패킷 전달 실패: port=%d err=%v", port, err)
 		return
 	}
 
 	// Step 4: 양방향 복사 (external ↔ yamux data stream)
-	// 클라이언트 쪽에서 데이터 스트림 → 로컬 MC 서버로 전달
+	// bufio.Reader를 통해 읽어야 버퍼에 남은 바이트도 함께 전달됨
 	log.Printf("[Data] 트래픽 브릿지 시작: addr=%s port=%d", remoteAddr, port)
 
 	done := make(chan struct{}, 2)
 	go func() {
 		cw := &countWriter{dst: dataStream, counter: &sess.BytesIn}
-		io.Copy(cw, externalConn) // external → tunnel
+		io.Copy(cw, bufReader) // external(bufio.Reader) → tunnel
 		done <- struct{}{}
 	}()
 	go func() {

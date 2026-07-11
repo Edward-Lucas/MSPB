@@ -31,7 +31,7 @@ const (
 
 	// 패킷 peek 설정
 	PeekTimeoutSeconds = 10   // 첫 패킷 대기 타임아웃 (초)
-	PeekBufferSize     = 1024 // peek 버퍼 크기
+	PeekBufferSize     = 64 * 1024 // peek 버퍼 크기 (64KB — 모드드 클라이언트 대응)
 
 	// 플레이어 제한
 	MaxPlayersPerClient = 8 // 클라이언트(호스트)당 최대 동시 접속 인원
