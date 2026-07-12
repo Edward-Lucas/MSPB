@@ -49,9 +49,37 @@ type Session struct {
 	BytesIn  atomic.Int64 // 외부 → 터널 (incoming)
 	BytesOut atomic.Int64 // 터널 → 외부 (outgoing)
 
-	// Last snapshot for per-interval calculation
-	LastBytesIn  atomic.Int64 // BytesIn at last snapshot
-	LastBytesOut atomic.Int64 // BytesOut at last snapshot
+	// 실시간 전송량 (백그라운드 티커가 1초마다 갱신)
+	RateIn  atomic.Int64 // bytes/sec in
+	RateOut atomic.Int64 // bytes/sec out
+
+	// ticker 내부 스냅샷
+	lastBytesIn  int64
+	lastBytesOut int64
+	tickerDone   chan struct{} // 세션 종료 시 닫힘
+}
+
+// StartRateTicker 는 1초마다 바이트 카운터를 샘플링하여
+// RateIn/RateOut를 갱신하는 백그라운드 고루틴을 시작합니다.
+func (s *Session) StartRateTicker() {
+	s.tickerDone = make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				curIn := s.BytesIn.Load()
+				curOut := s.BytesOut.Load()
+				s.RateIn.Store(curIn - s.lastBytesIn)
+				s.RateOut.Store(curOut - s.lastBytesOut)
+				s.lastBytesIn = curIn
+				s.lastBytesOut = curOut
+			case <-s.tickerDone:
+				return
+			}
+		}
+	}()
 }
 
 // IncrementPlayer 은 현재 플레이어 수를 1 증가시킵니다.
@@ -100,6 +128,9 @@ func (s *Session) RemovePlayer(name string) {
 // Close 는 세션의 리스너를 정리합니다.
 func (s *Session) Close() {
 	if s.Closed.CompareAndSwap(false, true) {
+		if s.tickerDone != nil {
+			close(s.tickerDone)
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if s.Listener != nil {
@@ -192,6 +223,7 @@ func (pt *PortTable) AllocatePort(clientID string) (uint16, error) {
 
 		pt.portToSession.Store(port, sess)
 		pt.clientToSession.Store(clientID, sess)
+		sess.StartRateTicker()
 
 		log.Printf("[PortTable] 포트 할당: client=%s port=%d", clientID, port)
 		pt.notifyChange()

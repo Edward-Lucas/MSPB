@@ -281,7 +281,7 @@ func (c *Client) handleDataStream(stream net.Conn, localAddr string) {
 		return
 	}
 	// 초기 패킷 바이트도 트래픽에 포함
-	c.dashboard.AddBytesOut(int64(len(initialData)))
+	c.dashboard.AddBytesIn(int64(len(initialData)))
 
 	// 양방향 복사: yamux stream ↔ local MC server
 	// reader에 남은 버퍼 데이터도 포함하여 전달

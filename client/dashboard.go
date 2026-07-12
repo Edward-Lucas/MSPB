@@ -43,9 +43,13 @@ type ClientDashboard struct {
 	bytesIn  atomic.Int64
 	bytesOut atomic.Int64
 
-	// 스냅샷 (interval 계산용)
-	lastBytesIn  atomic.Int64
-	lastBytesOut atomic.Int64
+	// 실시간 전송량 (백그라운드 티커가 1초마다 갱신)
+	rateIn  atomic.Int64
+	rateOut atomic.Int64
+
+	// 티커 내부 스냅샷
+	lastBytesIn  int64
+	lastBytesOut int64
 
 	// 하트비트 추적
 	lastHeartbeat atomic.Int64 // UnixNano
@@ -60,11 +64,30 @@ type ClientDashboard struct {
 
 // NewClientDashboard 는 새 클라이언트 대시보드를 생성합니다.
 func NewClientDashboard(serverAddr, localAddr string) *ClientDashboard {
-	return &ClientDashboard{
+	cd := &ClientDashboard{
 		serverAddr:  serverAddr,
 		localAddr:   localAddr,
 		connectedAt: time.Now(),
 	}
+	cd.startRateTicker()
+	return cd
+}
+
+// startRateTicker 는 1초마다 바이트 카운터를 샘플링하여
+// rateIn/rateOut를 갱신하는 백그라운드 고루틴을 시작합니다.
+func (cd *ClientDashboard) startRateTicker() {
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			curIn := cd.bytesIn.Load()
+			curOut := cd.bytesOut.Load()
+			cd.rateIn.Store(curIn - cd.lastBytesIn)
+			cd.rateOut.Store(curOut - cd.lastBytesOut)
+			cd.lastBytesIn = curIn
+			cd.lastBytesOut = curOut
+		}
+	}()
 }
 
 // SetAssignedPort 는 할당된 포트를 설정합니다.
@@ -170,14 +193,6 @@ func (cd *ClientDashboard) handleStatus(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 스냅샷 기반 interval 계산
-	curIn := cd.bytesIn.Load()
-	curOut := cd.bytesOut.Load()
-	lastIn := cd.lastBytesIn.Load()
-	lastOut := cd.lastBytesOut.Load()
-	cd.lastBytesIn.Store(curIn)
-	cd.lastBytesOut.Store(curOut)
-
 	var players []PlayerData
 	var count int32
 	cd.players.Range(func(_, v interface{}) bool {
@@ -207,10 +222,10 @@ func (cd *ClientDashboard) handleStatus(w http.ResponseWriter, r *http.Request) 
 		LocalAddr:     cd.localAddr,
 		PlayerCount:   count,
 		Players:       players,
-		BytesIn:       curIn,
-		BytesOut:      curOut,
-		IntervalIn:    curIn - lastIn,
-		IntervalOut:   curOut - lastOut,
+		BytesIn:       cd.bytesIn.Load(),
+		BytesOut:      cd.bytesOut.Load(),
+		IntervalIn:    cd.rateIn.Load(),  // 티커가 갱신한 초당 전송량
+		IntervalOut:   cd.rateOut.Load(),  // 티커가 갱신한 초당 전송량
 		LastHeartbeat: lastHBStr,
 		UptimeSeconds: int64(time.Since(cd.connectedAt).Seconds()),
 		Connected:     cd.connected.Load(),

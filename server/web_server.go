@@ -19,16 +19,14 @@ import (
 
 // WebServer 는 외부 웹페이지에 stats API를 제공하는 경량 서버입니다.
 type WebServer struct {
-	portTable    *PortTable
-	listener     net.Listener
-	lastPollTime time.Time
+	portTable *PortTable
+	listener  net.Listener
 }
 
 // NewWebServer 는 웹 서버를 생성합니다.
 func NewWebServer(pt *PortTable) *WebServer {
 	return &WebServer{
-		portTable:    pt,
-		lastPollTime: time.Now(),
+		portTable: pt,
 	}
 }
 
@@ -67,8 +65,7 @@ func (ws *WebServer) handleStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var totalBytesIn, totalBytesOut int64
-	var totalIntervalIn, totalIntervalOut int64
+	var totalRateIn, totalRateOut int64
 	active := 0
 	ws.portTable.portToSession.Range(func(_, value interface{}) bool {
 		sess := value.(*Session)
@@ -77,28 +74,17 @@ func (ws *WebServer) handleStats(w http.ResponseWriter, r *http.Request) {
 		}
 		if !sess.Closed.Load() {
 			active++
-			curIn := sess.BytesIn.Load()
-			curOut := sess.BytesOut.Load()
-			lastIn := sess.LastBytesIn.Load()
-			lastOut := sess.LastBytesOut.Load()
-			sess.LastBytesIn.Store(curIn)
-			sess.LastBytesOut.Store(curOut)
-			totalBytesIn += curIn
-			totalBytesOut += curOut
-			totalIntervalIn += curIn - lastIn
-			totalIntervalOut += curOut - lastOut
+			totalRateIn += sess.RateIn.Load()
+			totalRateOut += sess.RateOut.Load()
 		}
 		return true
 	})
 
-	totalInterval := totalIntervalIn + totalIntervalOut
+	totalRate := totalRateIn + totalRateOut
 	// 초당 전송량 기준: 100MB/s = 100%
-	elapsed := time.Since(ws.lastPollTime).Seconds()
-	ws.lastPollTime = time.Now()
 	netPct := 0.0
-	if totalInterval > 0 && elapsed > 0 {
-		bytesPerSec := float64(totalInterval) / elapsed
-		pct := bytesPerSec / (100 * 1024 * 1024) * 100
+	if totalRate > 0 {
+		pct := float64(totalRate) / (100 * 1024 * 1024) * 100
 		if pct > 0 && pct < 1 {
 			pct = 1
 		}

@@ -502,15 +502,21 @@
             const API_BASE = window.location.origin;
             let refreshInterval = null;
 
-            // Global rate tracking for stats card
-            let lastTotalBytesIn = 0;
-            let lastTotalBytesOut = 0;
-
             // Traffic history per port (for usage graphs)
             const trafficHistory = {}; // port -> { in: [{t, v}], out: [{t, v}] }
             const HISTORY_MAX = 60; // 60 data points = 1 minute at 1s interval
 
             const intervalHistory = {}; // port -> { in: [{t, v}], out: [{t, v}] }
+
+            // 전역 합산 interval 히스토리 (그래프용)
+            const globalIntervalHistory = { in: [], out: [] };
+
+            // Global all-time max rates (survive across graph renders)
+            let globalMaxIn = 0;
+            let globalMaxOut = 0;
+
+            // Global cumulative traffic (from fetchStats)
+            let globalTotalTraffic = 0;
 
             function recordTraffic(
                 port,
@@ -635,13 +641,19 @@
                     document.getElementById("stat-total-traffic").textContent =
                         formatBytes(data.total_bytes_transferred);
 
-                    // Compute real-time rate from cumulative totals
-                    const rateIn = data.total_bytes_in - lastTotalBytesIn;
-                    const rateOut = data.total_bytes_out - lastTotalBytesOut;
-                    lastTotalBytesIn = data.total_bytes_in;
-                    lastTotalBytesOut = data.total_bytes_out;
+                    // 전역 누적치 저장 (그래프 헤더 표시용)
+                    globalTotalTraffic = data.global_bytes_transferred;
+
+                    // 전역 interval 히스토리 저장 (그래프용)
+                    const now = Date.now();
+                    globalIntervalHistory.in.push({ t: now, v: data.interval_bytes_in });
+                    globalIntervalHistory.out.push({ t: now, v: data.interval_bytes_out });
+                    if (globalIntervalHistory.in.length > HISTORY_MAX) globalIntervalHistory.in.shift();
+                    if (globalIntervalHistory.out.length > HISTORY_MAX) globalIntervalHistory.out.shift();
+
+                    // 서버에서 계산된 초당 전송량 사용
                     document.getElementById("stat-rate").textContent =
-                        formatBytes(rateIn + rateOut) + "/s";
+                        formatBytes(data.interval_bytes_in + data.interval_bytes_out) + "/s";
 
                     setStatus(true);
                 } catch (e) {
@@ -1206,7 +1218,7 @@
 
             // ── Global Traffic Graph ──
 
-            function buildGraphSVG(inData, outData, graphW, graphH) {
+            function buildGraphSVG(inData, outData, graphW, graphH, latestIn, latestOut) {
                 const pad = { top: 20, right: 50, bottom: 24, left: 50 };
                 const plotW = graphW - pad.left - pad.right;
                 const plotH = graphH - pad.top - pad.bottom;
@@ -1355,46 +1367,28 @@
                     "</svg>" +
                     '<div class="flex justify-center gap-6 text-xs text-[hsl(210,5%,50%)] mt-2">' +
                     '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(210,80%,55%)"></span>수신 (↓) ' +
-                    formatBytes(maxIn) +
-                    "/s max</span>" +
+                    formatBytes(latestIn) +
+                    "/s</span>" +
                     '<span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded" style="background:hsl(190,70%,50%)"></span>송신 (↑) ' +
-                    formatBytes(maxOut) +
-                    "/s max</span>" +
+                    formatBytes(latestOut) +
+                    "/s</span>" +
                     "</div>"
                 );
             }
 
             function updateGlobalGraph() {
-                // Merge all ports' intervalHistory into one combined series
-                const allPorts = Object.keys(intervalHistory);
-                if (allPorts.length === 0) return;
+                const gih = globalIntervalHistory;
+                if (gih.in.length < 2) return;
 
-                // Find the max length across all ports
-                let maxLen = 0;
-                allPorts.forEach((port) => {
-                    const ih = intervalHistory[port];
-                    if (ih.in.length > maxLen) maxLen = ih.in.length;
-                });
-                if (maxLen < 2) return;
+                // 전역 최대값 갱신
+                const maxIn = Math.max(...gih.in.map((d) => d.v));
+                const maxOut = Math.max(...gih.out.map((d) => d.v));
+                if (maxIn > globalMaxIn) globalMaxIn = maxIn;
+                if (maxOut > globalMaxOut) globalMaxOut = maxOut;
 
-                // Sum interval values across all ports for each time index
-                const mergedIn = [];
-                const mergedOut = [];
-                for (let i = 0; i < maxLen; i++) {
-                    let sumIn = 0;
-                    let sumOut = 0;
-                    let t = 0;
-                    allPorts.forEach((port) => {
-                        const ih = intervalHistory[port];
-                        if (i < ih.in.length) {
-                            sumIn += ih.in[i].v;
-                            sumOut += ih.out[i].v;
-                            t = ih.in[i].t;
-                        }
-                    });
-                    mergedIn.push({ t, v: sumIn });
-                    mergedOut.push({ t, v: sumOut });
-                }
+                // 실시간 값
+                const latestIn = gih.in[gih.in.length - 1].v;
+                const latestOut = gih.out[gih.out.length - 1].v;
 
                 const container = document.getElementById(
                     "global-graph-container",
@@ -1402,21 +1396,23 @@
                 const label = document.getElementById("global-graph-label");
                 if (container) {
                     container.innerHTML = buildGraphSVG(
-                        mergedIn,
-                        mergedOut,
+                        gih.in,
+                        gih.out,
                         800,
                         180,
+                        latestIn,
+                        latestOut,
                     );
                 }
                 if (label) {
-                    const latest = mergedIn[mergedIn.length - 1];
-                    const latestOut = mergedOut[mergedOut.length - 1];
                     label.textContent =
                         "↓ " +
-                        formatBytes(latest.v) +
-                        "/s  ↑ " +
-                        formatBytes(latestOut.v) +
-                        "/s";
+                        formatBytes(globalMaxIn) +
+                        "/s max  ↑ " +
+                        formatBytes(globalMaxOut) +
+                        "/s max  (총 " +
+                        formatBytes(globalTotalTraffic) +
+                        ")";
                 }
             }
 

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -172,15 +173,24 @@ type PlayerEntry struct {
 type StatsInfo struct {
 	ActiveSessions        int    `json:"active_sessions"`
 	TotalPlayers          int32  `json:"total_players"`
-	TotalBytesIn          int64  `json:"total_bytes_in"`          // cumulative all sessions
-	TotalBytesOut         int64  `json:"total_bytes_out"`         // cumulative all sessions
-	TotalBytesTransferred int64  `json:"total_bytes_transferred"` // cumulative in+out
+	TotalBytesIn          int64  `json:"total_bytes_in"`          // active sessions cumulative
+	TotalBytesOut         int64  `json:"total_bytes_out"`         // active sessions cumulative
+	TotalBytesTransferred int64  `json:"total_bytes_transferred"` // active sessions in+out
+	IntervalBytesIn       int64  `json:"interval_bytes_in"`       // bytes/sec in
+	IntervalBytesOut      int64  `json:"interval_bytes_out"`      // bytes/sec out
+	GlobalBytesIn         int64  `json:"global_bytes_in"`         // all-time cumulative in
+	GlobalBytesOut        int64  `json:"global_bytes_out"`        // all-time cumulative out
+	GlobalBytesTransferred int64 `json:"global_bytes_transferred"` // all-time cumulative in+out
 	PortRangeStart        uint16 `json:"port_range_start"`
 	PortRangeEnd          uint16 `json:"port_range_end"`
 	UptimeSeconds         int64  `json:"uptime_seconds"`
 }
 
 var serverStartTime = time.Now()
+
+// 전역 누적 바이트 카운터 (세션과 무관하게 증가만 수행)
+var globalBytesIn atomic.Int64
+var globalBytesOut atomic.Int64
 
 // ──────────────────────────────────────────────
 // API 핸들러
@@ -215,24 +225,16 @@ func (ds *DashboardServer) handleSessions(w http.ResponseWriter, r *http.Request
 			players = []PlayerEntry{}
 		}
 
-		// Snapshot traffic for per-interval calculation
-		curIn := sess.BytesIn.Load()
-		curOut := sess.BytesOut.Load()
-		lastIn := sess.LastBytesIn.Load()
-		lastOut := sess.LastBytesOut.Load()
-		sess.LastBytesIn.Store(curIn)
-		sess.LastBytesOut.Store(curOut)
-
 		sessions = append(sessions, SessionInfo{
 			ClientID:         sess.ClientID,
 			AssignedPort:     sess.AssignedPort,
 			PlayerCount:      sess.PlayerCount.Load(),
 			Players:          players,
 			UnlimitedPlayers: sess.UnlimitedPlayers.Load(),
-			BytesIn:          curIn,
-			BytesOut:         curOut,
-			IntervalIn:       curIn - lastIn,
-			IntervalOut:      curOut - lastOut,
+			BytesIn:          sess.BytesIn.Load(),
+			BytesOut:         sess.BytesOut.Load(),
+			IntervalIn:       sess.RateIn.Load(),  // 티커가 갱신한 초당 전송량
+			IntervalOut:      sess.RateOut.Load(),  // 티커가 갱신한 초당 전송량
 			CreatedAt:        sess.CreatedAt.Format(time.RFC3339),
 			LastHeartbeat:    time.Unix(0, sess.LastHeartbeat.Load()).Format(time.RFC3339),
 			Closed:           sess.Closed.Load(),
@@ -257,6 +259,7 @@ func (ds *DashboardServer) handleStats(w http.ResponseWriter, r *http.Request) {
 
 	var totalPlayers int32
 	var totalBytesIn, totalBytesOut int64
+	var totalRateIn, totalRateOut int64
 	active := 0
 	ds.portTable.portToSession.Range(func(_, value interface{}) bool {
 		sess := value.(*Session)
@@ -268,20 +271,30 @@ func (ds *DashboardServer) handleStats(w http.ResponseWriter, r *http.Request) {
 			totalPlayers += sess.PlayerCount.Load()
 			totalBytesIn += sess.BytesIn.Load()
 			totalBytesOut += sess.BytesOut.Load()
+			totalRateIn += sess.RateIn.Load()
+			totalRateOut += sess.RateOut.Load()
 		}
 		return true
 	})
 
+	gBytesIn := globalBytesIn.Load()
+	gBytesOut := globalBytesOut.Load()
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(StatsInfo{
-		ActiveSessions:        active,
-		TotalPlayers:          totalPlayers,
-		TotalBytesIn:          totalBytesIn,
-		TotalBytesOut:         totalBytesOut,
-		TotalBytesTransferred: totalBytesIn + totalBytesOut,
-		PortRangeStart:        ds.portTable.portRangeStart,
-		PortRangeEnd:          ds.portTable.portRangeEnd,
-		UptimeSeconds:         int64(time.Since(serverStartTime).Seconds()),
+		ActiveSessions:         active,
+		TotalPlayers:           totalPlayers,
+		TotalBytesIn:           totalBytesIn,
+		TotalBytesOut:          totalBytesOut,
+		TotalBytesTransferred:  totalBytesIn + totalBytesOut,
+		IntervalBytesIn:        totalRateIn,
+		IntervalBytesOut:       totalRateOut,
+		GlobalBytesIn:          gBytesIn,
+		GlobalBytesOut:         gBytesOut,
+		GlobalBytesTransferred: gBytesIn + gBytesOut,
+		PortRangeStart:         ds.portTable.portRangeStart,
+		PortRangeEnd:           ds.portTable.portRangeEnd,
+		UptimeSeconds:          int64(time.Since(serverStartTime).Seconds()),
 	})
 }
 

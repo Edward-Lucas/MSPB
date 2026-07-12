@@ -320,6 +320,11 @@ func (tm *TunnelManager) handleExternalConnection(externalConn net.Conn, dataSes
 		log.Printf("[Data] 초기 패킷 전달 실패: port=%d err=%v", port, err)
 		return
 	}
+	initLen := int64(len(initialData))
+	if sessOK {
+		sess.BytesIn.Add(initLen)
+	}
+	globalBytesIn.Add(initLen)
 
 	// Step 4: 양방향 복사 (external ↔ yamux data stream)
 	// bufio.Reader를 통해 읽어야 버퍼에 남은 바이트도 함께 전달됨
@@ -327,12 +332,12 @@ func (tm *TunnelManager) handleExternalConnection(externalConn net.Conn, dataSes
 
 	done := make(chan struct{}, 2)
 	go func() {
-		cw := &countWriter{dst: dataStream, counter: &sess.BytesIn}
+		cw := &countWriter{dst: dataStream, counter: &sess.BytesIn, globalCounter: &globalBytesIn}
 		io.Copy(cw, bufReader) // external(bufio.Reader) → tunnel
 		done <- struct{}{}
 	}()
 	go func() {
-		cw := &countWriter{dst: externalConn, counter: &sess.BytesOut}
+		cw := &countWriter{dst: externalConn, counter: &sess.BytesOut, globalCounter: &globalBytesOut}
 		io.Copy(cw, dataStream) // tunnel → external
 		done <- struct{}{}
 	}()
@@ -343,13 +348,17 @@ func (tm *TunnelManager) handleExternalConnection(externalConn net.Conn, dataSes
 
 // countWriter wraps an io.Writer and atomically counts bytes written.
 type countWriter struct {
-	dst     io.Writer
-	counter *atomic.Int64
+	dst           io.Writer
+	counter       *atomic.Int64
+	globalCounter *atomic.Int64 // optional: 전역 누적 카운터
 }
 
 func (w *countWriter) Write(p []byte) (int, error) {
 	n, err := w.dst.Write(p)
 	w.counter.Add(int64(n))
+	if w.globalCounter != nil {
+		w.globalCounter.Add(int64(n))
+	}
 	return n, err
 }
 
