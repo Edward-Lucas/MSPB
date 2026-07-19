@@ -1,0 +1,31 @@
+User-agent: *
+Allow: /
+Allow: /api/
+Disallow: /dashboard
+
+User-agent: Googlebot
+Allow: /
+Allow: /api/
+Disallow: /dashboard
+
+User-agent: Bingbot
+Allow: /
+Allow: /api/
+Disallow: /dashboard
+
+User-agent: Twitterbot
+Allow: /
+Allow: /api/
+Disallow: /dashboard
+
+User-agent: facebookexternalhit
+Allow: /
+Allow: /api/
+Disallow: /dashboard
+
+User-agent: Yeti
+Allow: /
+Allow: /api/
+Disallow: /dashboard
+
+Sitemap: https://mspb.r-e.kr/sitemap.xml
