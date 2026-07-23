@@ -38,7 +38,7 @@ func NewTunnelManager(pt *PortTable, publicIP string) *TunnelManager {
 }
 
 // botResponse 는 비-yamux 연결(봇/스캐너)에게 보내는 식별 메시지입니다.
-const botResponse = "MSPB - MiFun Server Proxy Bridge\r\nThis is a private tunnel endpoint, not a public service.\r\n"
+const botResponse = "MSPB - Proxy Bridge Server\r\nThis is a private tunnel endpoint, not a public service.\r\n"
 
 // connWithReplacedReader 는 읽기만 다른 reader로 대체하고, 쓰기/닫기는 원본 conn을 사용하는 래퍼입니다.
 type connWithReplacedReader struct {
@@ -46,14 +46,16 @@ type connWithReplacedReader struct {
 	conn   net.Conn
 }
 
-func (w *connWithReplacedReader) Read(p []byte) (int, error)  { return w.reader.Read(p) }
-func (w *connWithReplacedReader) Write(p []byte) (int, error) { return w.conn.Write(p) }
-func (w *connWithReplacedReader) Close() error                { return w.conn.Close() }
-func (w *connWithReplacedReader) LocalAddr() net.Addr         { return w.conn.LocalAddr() }
-func (w *connWithReplacedReader) RemoteAddr() net.Addr        { return w.conn.RemoteAddr() }
-func (w *connWithReplacedReader) SetDeadline(t time.Time) error      { return w.conn.SetDeadline(t) }
-func (w *connWithReplacedReader) SetReadDeadline(t time.Time) error  { return w.conn.SetReadDeadline(t) }
-func (w *connWithReplacedReader) SetWriteDeadline(t time.Time) error { return w.conn.SetWriteDeadline(t) }
+func (w *connWithReplacedReader) Read(p []byte) (int, error)        { return w.reader.Read(p) }
+func (w *connWithReplacedReader) Write(p []byte) (int, error)       { return w.conn.Write(p) }
+func (w *connWithReplacedReader) Close() error                      { return w.conn.Close() }
+func (w *connWithReplacedReader) LocalAddr() net.Addr               { return w.conn.LocalAddr() }
+func (w *connWithReplacedReader) RemoteAddr() net.Addr              { return w.conn.RemoteAddr() }
+func (w *connWithReplacedReader) SetDeadline(t time.Time) error     { return w.conn.SetDeadline(t) }
+func (w *connWithReplacedReader) SetReadDeadline(t time.Time) error { return w.conn.SetReadDeadline(t) }
+func (w *connWithReplacedReader) SetWriteDeadline(t time.Time) error {
+	return w.conn.SetWriteDeadline(t)
+}
 
 // HandleClientConnection 은 클라이언트의 최초 TCP 연결을 처리합니다.
 //

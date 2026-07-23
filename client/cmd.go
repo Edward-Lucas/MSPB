@@ -55,9 +55,7 @@ func RunCLI() {
 	}()
 
 	fmt.Printf("MSPB Client  v1.0.0  2026-07-05\n")
-	fmt.Println("────────────────────────────────────")
 	fmt.Println("  official  https://mspb.r-e.kr")
-	fmt.Println("  made by   MiFun")
-	fmt.Println()
+	fmt.Println("────────────────────────────────────")
 	client.Run()
 }
