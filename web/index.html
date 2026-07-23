@@ -89,6 +89,10 @@
                 transform: translateY(-4px);
                 box-shadow: var(--shadow-glass), var(--shadow-glow);
             }
+            #ban-warning-modal .glass-card:hover {
+                transform: none;
+                box-shadow: var(--shadow-glass);
+            }
 
             /* Gradient Text */
             .gradient-text {
@@ -868,19 +872,28 @@
                 </h3>
                 <p class="text-sm text-[hsl(210,5%,60%)] leading-relaxed">
                     <strong class="text-red-400">IP 밴 기능을 사용하면 모든 사용자의 접속이 차단됩니다.</strong><br />
-                    서버에 연결된 <strong>모든 클라이언트</strong>가 접속할 수 없게 됩니다.<br />
+                    서버에 연결된 <strong>모든 클라이언트</strong>가 접속할 수 없게 됩니다.
                 </p>
                 <div
-                    class="bg-[hsl(220,10%,14%)] rounded-lg p-4 border border-red-500/30 text-left text-sm"
+                    class="bg-[hsl(220,10%,14%)] rounded-lg p-4 border border-[hsl(220,10%,22%)] text-left text-sm"
                 >
-                    <div class="font-semibold text-red-400 mb-2">⚠️ 주의사항</div>
-                    <ul class="space-y-1 text-[hsl(210,5%,60%)]">
-                        <li>• IP 밴은 <strong>되돌릴 수 없습니다</strong></li>
-                        <li>• <strong>모든 사용자</strong>가 서버에 접속할 수 없게 됩니다</li>
-                        <li>• 신중하게 사용하세요</li>
-                    </ul>
+                    <div class="font-semibold text-[hsl(210,10%,80%)] mb-2">📋 서버 개방 방법</div>
+                    <ol class="space-y-1.5 text-[hsl(210,5%,60%)] list-decimal list-inside">
+                        <li>마인크래프트 서버를 실행합니다.</li>
+                        <li><code class="text-[hsl(210,10%,80%)] bg-[hsl(220,10%,18%)] px-1.5 py-0.5 rounded text-xs">mspb-client.exe</code>를 실행합니다.</li>
+                        <li>외부 접속 주소를 확인하여 플레이어에게 공유합니다.</li>
+                    </ol>
                 </div>
-                <div class="flex gap-3">
+                <div class="space-y-3">
+                    <a
+                        href="https://github.com/Edward-Lucas/MSPB/wiki/%EC%8B%9C%EC%9E%91%ED%95%98%EA%B8%B0"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="block w-full px-4 py-3 rounded-xl border border-[hsl(220,10%,22%)] text-[hsl(210,10%,80%)] hover:bg-[hsl(220,15%,15%)] transition-colors font-semibold text-sm text-center"
+                    >
+                        더 자세히 알아보기
+                    </a>
+                    <div class="flex gap-3">
                     <button
                         onclick="closeBanWarning()"
                         class="flex-1 px-4 py-3 rounded-xl border border-[hsl(220,10%,22%)] text-[hsl(210,10%,80%)] hover:bg-[hsl(220,15%,15%)] transition-colors font-semibold text-sm"
@@ -895,6 +908,7 @@
                     >
                         <span class="gradient-text">다운로드</span>
                     </a>
+                    </div>
                 </div>
             </div>
         </div>
